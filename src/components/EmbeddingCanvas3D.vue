@@ -50,9 +50,9 @@ let sprites: THREE.Sprite[] = [];
 const baseScale = { x: 4, y: 1 }; // Base sprite scale
 
 // Spring parameters (underdamped)
-const springK = 120;      // Spring stiffness
-const damping = 12;       // Damping coefficient (underdamped < 2*sqrt(k))
-const dt = 1 / 60;        // Time step
+const springK = 120; // Spring stiffness
+const damping = 12; // Damping coefficient (underdamped < 2*sqrt(k))
+const dt = 1 / 60; // Time step
 
 function createTextSprite(text: string): THREE.Sprite {
   const canvas = document.createElement('canvas');
@@ -69,7 +69,10 @@ function createTextSprite(text: string): THREE.Sprite {
   context.fillText(text, 8, 80);
 
   const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+  });
   const sprite = new THREE.Sprite(material);
   sprite.scale.set(4, 1, 1);
   // Shift center to left edge so text is left-aligned from anchor point
@@ -86,7 +89,12 @@ function init() {
   scene.background = new THREE.Color(0x1a1a2e);
 
   // Camera - start closer on desktop
-  camera = new THREE.PerspectiveCamera(60, props.width / props.height, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(
+    60,
+    props.width / props.height,
+    0.1,
+    1000
+  );
   const isMobile = props.width < 768;
   const distance = isMobile ? 15 : 8;
   camera.position.set(distance, distance * 0.6, distance);
@@ -203,11 +211,17 @@ function updateTargets() {
 function updateSpringPhysics() {
   if (!pointsMesh) return;
 
-  const positions = pointsMesh.geometry.attributes.position.array as Float32Array;
+  if (!pointsMesh?.geometry?.attributes?.position?.array) return;
+
+  const positions = pointsMesh.geometry.attributes.position
+    .array as Float32Array;
 
   pointStates.forEach((state, i) => {
     // Position spring physics
-    const displacement = new THREE.Vector3().subVectors(state.current, state.target);
+    const displacement = new THREE.Vector3().subVectors(
+      state.current,
+      state.target
+    );
     const springForce = displacement.multiplyScalar(-springK);
     const dampingForce = state.velocity.clone().multiplyScalar(-damping);
     const totalForce = springForce.add(dampingForce);
@@ -268,7 +282,7 @@ function onMouseMove(event: MouseEvent) {
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObjects(labelsGroup.children);
 
-  if (intersects.length > 0) {
+  if (intersects.length > 0 && intersects[0]?.object?.userData?.token) {
     hoveredToken.value = intersects[0].object.userData.token;
   } else {
     hoveredToken.value = null;
@@ -336,13 +350,17 @@ onUnmounted(() => {
 });
 
 // When points change, update targets (not recreate)
-watch(() => props.points, () => {
-  if (pointStates.length > 0) {
-    updateTargets();
-  } else {
-    initializePoints();
-  }
-}, { deep: true });
+watch(
+  () => props.points,
+  () => {
+    if (pointStates.length > 0) {
+      updateTargets();
+    } else {
+      initializePoints();
+    }
+  },
+  { deep: true }
+);
 
 watch([() => props.width, () => props.height], handleResize);
 </script>
