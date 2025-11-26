@@ -33,8 +33,8 @@ const currentPoints = computed(() => {
 });
 
 function cycleDimensions() {
-  if (dimensions.value === 3) dimensions.value = 2;
-  else if (dimensions.value === 2) dimensions.value = 1;
+  if (dimensions.value === 3) dimensions.value = 1;
+  else if (dimensions.value === 1) dimensions.value = 2;
   else dimensions.value = 3;
 }
 
