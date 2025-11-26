@@ -27,9 +27,24 @@ let animationId: number;
 // Auto-rotation state
 let isInteracting = false;
 let currentSpeed = 0;
-const maxSpeed = 2; // OrbitControls autoRotateSpeed units
+const maxSpeed = 2;
 const accelerationRate = 0.01;
 const decelerationRate = 0.05;
+
+// Spring animation state
+interface PointState {
+  current: THREE.Vector3;
+  velocity: THREE.Vector3;
+  target: THREE.Vector3;
+}
+let pointStates: PointState[] = [];
+let pointsMesh: THREE.Points | null = null;
+let sprites: THREE.Sprite[] = [];
+
+// Spring parameters (underdamped)
+const springK = 120;      // Spring stiffness
+const damping = 12;       // Damping coefficient (underdamped < 2*sqrt(k))
+const dt = 1 / 60;        // Time step
 
 function createTextSprite(text: string): THREE.Sprite {
   const canvas = document.createElement('canvas');
@@ -78,7 +93,7 @@ function init() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   controls.autoRotate = true;
-  controls.autoRotateSpeed = 0; // Start at 0, will accelerate
+  controls.autoRotateSpeed = 0;
 
   // Raycaster for hover detection
   raycaster = new THREE.Raycaster();
@@ -99,14 +114,109 @@ function init() {
   const gridHelper = new THREE.GridHelper(12, 12, 0x444444, 0x333333);
   scene.add(gridHelper);
 
-  updatePoints();
+  initializePoints();
   animate();
 
-  // Event listeners for interaction tracking
+  // Event listeners
   renderer.domElement.addEventListener('mousemove', onMouseMove);
   renderer.domElement.addEventListener('pointerdown', onInteractionStart);
   renderer.domElement.addEventListener('pointerup', onInteractionEnd);
   renderer.domElement.addEventListener('pointerleave', onInteractionEnd);
+}
+
+function initializePoints() {
+  if (!pointsGroup || !labelsGroup) return;
+
+  const normalizedPoints = normalize3D(props.points, 10);
+
+  // Initialize point states
+  pointStates = normalizedPoints.map((point) => ({
+    current: new THREE.Vector3(point.x, point.y, point.z),
+    velocity: new THREE.Vector3(0, 0, 0),
+    target: new THREE.Vector3(point.x, point.y, point.z),
+  }));
+
+  // Create points geometry
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(normalizedPoints.length * 3);
+  const colors = new Float32Array(normalizedPoints.length * 3);
+
+  const color = new THREE.Color(0x4cc9f0);
+
+  normalizedPoints.forEach((point, i) => {
+    positions[i * 3] = point.x;
+    positions[i * 3 + 1] = point.y;
+    positions[i * 3 + 2] = point.z;
+    colors[i * 3] = color.r;
+    colors[i * 3 + 1] = color.g;
+    colors[i * 3 + 2] = color.b;
+
+    // Create label sprite
+    const sprite = createTextSprite(point.token);
+    sprite.position.set(point.x + 0.3, point.y + 0.2, point.z);
+    sprite.userData = { token: point.token, index: i };
+    sprites.push(sprite);
+    labelsGroup.add(sprite);
+  });
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.2,
+    vertexColors: true,
+    sizeAttenuation: true,
+  });
+
+  pointsMesh = new THREE.Points(geometry, material);
+  pointsGroup.add(pointsMesh);
+}
+
+function updateTargets() {
+  const normalizedPoints = normalize3D(props.points, 10);
+
+  // Update targets for existing points
+  normalizedPoints.forEach((point, i) => {
+    if (pointStates[i]) {
+      pointStates[i].target.set(point.x, point.y, point.z);
+    }
+  });
+}
+
+function updateSpringPhysics() {
+  if (!pointsMesh) return;
+
+  const positions = pointsMesh.geometry.attributes.position.array as Float32Array;
+
+  pointStates.forEach((state, i) => {
+    // Calculate spring force: F = -k * (x - target) - damping * v
+    const displacement = new THREE.Vector3().subVectors(state.current, state.target);
+    const springForce = displacement.multiplyScalar(-springK);
+    const dampingForce = state.velocity.clone().multiplyScalar(-damping);
+    const totalForce = springForce.add(dampingForce);
+
+    // Update velocity: v += F * dt
+    state.velocity.add(totalForce.multiplyScalar(dt));
+
+    // Update position: x += v * dt
+    state.current.add(state.velocity.clone().multiplyScalar(dt));
+
+    // Update geometry
+    positions[i * 3] = state.current.x;
+    positions[i * 3 + 1] = state.current.y;
+    positions[i * 3 + 2] = state.current.z;
+
+    // Update sprite position
+    if (sprites[i]) {
+      sprites[i].position.set(
+        state.current.x + 0.3,
+        state.current.y + 0.2,
+        state.current.z
+      );
+    }
+  });
+
+  pointsMesh.geometry.attributes.position.needsUpdate = true;
 }
 
 function onInteractionStart() {
@@ -115,50 +225,6 @@ function onInteractionStart() {
 
 function onInteractionEnd() {
   isInteracting = false;
-}
-
-function updatePoints() {
-  if (!pointsGroup || !labelsGroup) return;
-
-  // Clear existing points and labels
-  while (pointsGroup.children.length > 0) {
-    pointsGroup.remove(pointsGroup.children[0]);
-  }
-  while (labelsGroup.children.length > 0) {
-    labelsGroup.remove(labelsGroup.children[0]);
-  }
-
-  const normalizedPoints = normalize3D(props.points, 10);
-
-  // Create points geometry
-  const geometry = new THREE.BufferGeometry();
-  const positions: number[] = [];
-  const colors: number[] = [];
-
-  const color = new THREE.Color(0x4cc9f0);
-
-  normalizedPoints.forEach((point) => {
-    positions.push(point.x, point.y, point.z);
-    colors.push(color.r, color.g, color.b);
-
-    // Create label sprite
-    const sprite = createTextSprite(point.token);
-    sprite.position.set(point.x + 0.3, point.y + 0.2, point.z);
-    sprite.userData = { token: point.token };
-    labelsGroup.add(sprite);
-  });
-
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-  const material = new THREE.PointsMaterial({
-    size: 0.2,
-    vertexColors: true,
-    sizeAttenuation: true,
-  });
-
-  const pointsMesh = new THREE.Points(geometry, material);
-  pointsGroup.add(pointsMesh);
 }
 
 function handleResize() {
@@ -191,16 +257,16 @@ function animate() {
 
   // Handle auto-rotation speed
   if (isInteracting) {
-    // Decelerate when interacting
     currentSpeed = Math.max(0, currentSpeed - decelerationRate);
   } else {
-    // Accelerate when not interacting
     currentSpeed = Math.min(maxSpeed, currentSpeed + accelerationRate);
   }
 
-  // Apply speed to OrbitControls autoRotate
   controls.autoRotateSpeed = currentSpeed;
   controls.update();
+
+  // Update spring physics
+  updateSpringPhysics();
 
   // Make labels face camera
   labelsGroup.children.forEach((sprite) => {
@@ -234,7 +300,15 @@ onUnmounted(() => {
   cleanup();
 });
 
-watch(() => props.points, updatePoints, { deep: true });
+// When points change, update targets (not recreate)
+watch(() => props.points, () => {
+  if (pointStates.length > 0) {
+    updateTargets();
+  } else {
+    initializePoints();
+  }
+}, { deep: true });
+
 watch([() => props.width, () => props.height], handleResize);
 </script>
 
