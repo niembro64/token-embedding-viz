@@ -14,8 +14,8 @@ const viewportHeight = ref(window.innerHeight);
 
 const points2D = computed(() => {
   const reduced = reduceTo2D(embeddings.value);
-  // Convert 2D points to 3D with z=0
-  return reduced.map(p => ({ token: p.token, x: p.x, y: p.y, z: 0 }));
+  // Convert 2D points to 3D on XZ plane (Y=0 is the grid plane in Three.js)
+  return reduced.map(p => ({ token: p.token, x: p.x, y: 0, z: p.y }));
 });
 
 const points3D = computed(() => reduceTo3D(embeddings.value));

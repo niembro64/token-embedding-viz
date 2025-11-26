@@ -70,13 +70,16 @@ export function normalize3D(points: ReducedEmbedding3D[], scale: number = 10): R
   const maxZ = Math.max(...zs);
 
   const rangeX = maxX - minX || 1;
-  const rangeY = maxY - minY || 1;
+  const rangeY = maxY - minY;
   const rangeZ = maxZ - minZ || 1;
+
+  // If Y range is 0 (2D points), keep Y at original value (0)
+  const hasYVariance = rangeY > 0;
 
   return points.map(point => ({
     token: point.token,
     x: ((point.x - minX) / rangeX - 0.5) * scale,
-    y: ((point.y - minY) / rangeY - 0.5) * scale,
+    y: hasYVariance ? ((point.y - minY) / rangeY - 0.5) * scale : point.y,
     z: ((point.z - minZ) / rangeZ - 0.5) * scale,
   }));
 }
