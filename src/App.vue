@@ -60,7 +60,7 @@ onMounted(async () => {
   window.addEventListener('resize', handleResize);
 
   try {
-    const response = await fetch('/glove-filtered.json');
+    const response = await fetch(`${import.meta.env.BASE_URL}glove-filtered.json`);
     if (!response.ok) {
       throw new Error(`Failed to load embeddings: ${response.statusText}`);
     }
