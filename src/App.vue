@@ -92,30 +92,14 @@ onUnmounted(() => {
         />
       </div>
 
-      <!-- Mobile: floating controls always visible -->
-      <div v-if="isMobile" class="mobile-controls">
-        <button class="toggle-btn" @click="cycleDimensions">
-          {{ dimensions }}D
-        </button>
-        <button class="info-btn" @click="toggleSidebar">
-          ℹ
-        </button>
-      </div>
-
-      <!-- Sidebar / Info panel -->
+      <!-- Sidebar - Word Analogies only -->
       <div
         class="sidebar"
         :class="{ 'sidebar-visible': sidebarVisible, 'sidebar-mobile': isMobile }"
-        @click.self="isMobile && toggleSidebar()"
+        @click.self="toggleSidebar()"
       >
         <div class="sidebar-content">
-          <button v-if="isMobile" class="close-btn" @click="toggleSidebar">×</button>
-
-          <div class="sidebar-header">
-            <h1>Token Embedding Visualization</h1>
-            <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D</p>
-            <p class="token-count">{{ embeddings.length }} tokens</p>
-          </div>
+          <button class="close-btn" @click="toggleSidebar">×</button>
 
           <div class="analogy-section">
             <h2>Word Analogies</h2>
@@ -145,14 +129,23 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Desktop: controls at bottom of sidebar -->
-          <div v-if="!isMobile" class="sidebar-footer">
-            <button class="toggle-btn" @click="cycleDimensions">
-              {{ dimensions }}D
-            </button>
-            <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
-          </div>
+      <!-- Bottom bar - Title and controls -->
+      <div class="bottom-bar">
+        <div class="bottom-bar-left">
+          <h1>Token Embedding Visualization</h1>
+          <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D · {{ embeddings.length }} tokens</p>
+        </div>
+        <div class="bottom-bar-right">
+          <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
+          <button class="analogies-btn" :class="{ active: sidebarVisible }" @click="toggleSidebar">
+            Analogies
+          </button>
+          <button class="toggle-btn" @click="cycleDimensions">
+            {{ dimensions }}D
+          </button>
         </div>
       </div>
     </template>
@@ -193,11 +186,17 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
+  height: calc(100% - 70px);
   width: 280px;
   background: rgba(0, 0, 0, 0.8);
   z-index: 10;
   overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.sidebar.sidebar-visible {
+  transform: translateX(0);
 }
 
 .sidebar-content {
@@ -207,24 +206,6 @@ onUnmounted(() => {
   gap: 24px;
   min-height: 100%;
   box-sizing: border-box;
-}
-
-.sidebar-header h1 {
-  font-size: 1.2rem;
-  color: #4cc9f0;
-  margin: 0 0 8px 0;
-}
-
-.sidebar-header .subtitle {
-  font-size: 0.85rem;
-  color: #888;
-  margin: 0;
-}
-
-.sidebar-header .token-count {
-  font-size: 0.75rem;
-  color: #666;
-  margin: 4px 0 0 0;
 }
 
 .analogy-section h2 {
@@ -292,17 +273,44 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-/* Sidebar footer - Desktop */
-.sidebar-footer {
-  margin-top: auto;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+/* Bottom bar */
+.bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 15;
+  box-sizing: border-box;
 }
 
-.sidebar-footer .instructions {
+.bottom-bar-left h1 {
+  font-size: 1.1rem;
+  color: #4cc9f0;
+  margin: 0;
+}
+
+.bottom-bar-left .subtitle {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 4px 0 0 0;
+}
+
+.bottom-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.bottom-bar-right .instructions {
   font-size: 0.7rem;
   color: #666;
-  margin: 12px 0 0 0;
+  margin: 0;
 }
 
 /* Buttons */
@@ -327,21 +335,30 @@ onUnmounted(() => {
   transform: scale(0.98);
 }
 
-.info-btn {
+.analogies-btn {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
   border: none;
-  width: 44px;
-  height: 44px;
-  font-size: 20px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-.info-btn:hover {
+.analogies-btn:hover {
   background: rgba(255, 255, 255, 0.25);
+}
+
+.analogies-btn.active {
+  background: rgba(76, 201, 240, 0.3);
+  color: #4cc9f0;
+}
+
+.analogies-btn:active {
+  transform: scale(0.98);
 }
 
 .close-btn {
@@ -366,21 +383,11 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Mobile controls - always visible */
-.mobile-controls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  gap: 10px;
-  z-index: 20;
-}
-
 /* Mobile sidebar - fullscreen overlay */
 .sidebar-mobile {
   width: 100%;
-  height: 100%;
   background: rgba(0, 0, 0, 0.85);
+  transform: translateX(0);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -398,5 +405,34 @@ onUnmounted(() => {
 
 .sidebar-mobile .analogy-grid {
   justify-content: center;
+}
+
+/* Mobile bottom bar adjustments */
+@media (max-width: 767px) {
+  .bottom-bar {
+    padding: 0 12px;
+  }
+
+  .bottom-bar-left h1 {
+    font-size: 0.85rem;
+  }
+
+  .bottom-bar-left .subtitle {
+    font-size: 0.6rem;
+  }
+
+  .bottom-bar-right .instructions {
+    display: none;
+  }
+
+  .bottom-bar-right {
+    gap: 8px;
+  }
+
+  .toggle-btn,
+  .analogies-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
 }
 </style>
