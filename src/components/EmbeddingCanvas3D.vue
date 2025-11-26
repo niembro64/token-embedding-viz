@@ -7,13 +7,13 @@ import { normalize3D } from '../utils/pca';
 
 const props = defineProps<{
   points: ReducedEmbedding3D[];
-  dimensions: 1 | 2 | 3;
+  dimensions: 0 | 1 | 2 | 3;
   width: number;
   height: number;
 }>();
 
 // Scale multipliers for each dimension
-const scaleByDimension = { 1: 0.4, 2: 0.7, 3: 1.0 };
+const scaleByDimension: Record<number, number> = { 0: 0.2, 1: 0.4, 2: 0.7, 3: 1.0 };
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredToken = ref<string | null>(null);
@@ -48,6 +48,11 @@ let pointStates: PointState[] = [];
 let pointsMesh: THREE.Points | null = null;
 let sprites: THREE.Sprite[] = [];
 const baseScale = { x: 4, y: 1 }; // Base sprite scale
+
+// Arrow from "italy" to "pasta"
+let arrow: THREE.ArrowHelper | null = null;
+let italyIndex = -1;
+let pastaIndex = -1;
 
 // Spring parameters (underdamped)
 const springK = 120; // Spring stiffness
@@ -124,9 +129,31 @@ function init() {
   scene.add(pointsGroup);
   scene.add(labelsGroup);
 
-  // Add axis helper
-  const axisHelper = new THREE.AxesHelper(6);
-  scene.add(axisHelper);
+  // Add custom axes matching grid color
+  const axisColor = 0x444444;
+  const axisMaterial = new THREE.LineBasicMaterial({ color: axisColor });
+  const axisLength = 6;
+
+  // X axis
+  const xGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(axisLength, 0, 0),
+  ]);
+  scene.add(new THREE.Line(xGeom, axisMaterial));
+
+  // Y axis
+  const yGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, axisLength, 0),
+  ]);
+  scene.add(new THREE.Line(yGeom, axisMaterial));
+
+  // Z axis
+  const zGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, axisLength),
+  ]);
+  scene.add(new THREE.Line(zGeom, axisMaterial));
 
   // Add grid
   const gridHelper = new THREE.GridHelper(12, 12, 0x444444, 0x333333);
@@ -193,6 +220,29 @@ function initializePoints() {
 
   pointsMesh = new THREE.Points(geometry, material);
   pointsGroup.add(pointsMesh);
+
+  // Find indices for italy and pasta
+  italyIndex = normalizedPoints.findIndex((p) => p.token === 'italy');
+  pastaIndex = normalizedPoints.findIndex((p) => p.token === 'pasta');
+
+  // Create arrow from italy to pasta
+  if (italyIndex !== -1 && pastaIndex !== -1) {
+    const italyPos = pointStates[italyIndex].current;
+    const pastaPos = pointStates[pastaIndex].current;
+    const direction = new THREE.Vector3().subVectors(pastaPos, italyPos);
+    const length = direction.length();
+    direction.normalize();
+
+    arrow = new THREE.ArrowHelper(
+      direction,
+      italyPos,
+      length,
+      0xff4444, // red color
+      0.3, // head length
+      0.15 // head width
+    );
+    scene.add(arrow);
+  }
 }
 
 function updateTargets() {
@@ -321,6 +371,19 @@ function animate() {
       );
     }
   });
+
+  // Update arrow from italy to pasta
+  if (arrow && italyIndex !== -1 && pastaIndex !== -1) {
+    const italyPos = pointStates[italyIndex].current;
+    const pastaPos = pointStates[pastaIndex].current;
+    const direction = new THREE.Vector3().subVectors(pastaPos, italyPos);
+    const length = direction.length();
+    direction.normalize();
+
+    arrow.position.copy(italyPos);
+    arrow.setDirection(direction);
+    arrow.setLength(length, 0.3, 0.15);
+  }
 
   renderer.render(scene, camera);
 }
