@@ -669,9 +669,6 @@ watch([() => props.width, () => props.height], handleResize);
       {{ hoveredToken }}
     </div>
 
-    <div class="instructions">
-      Drag to rotate | Scroll to zoom | Right-drag to pan
-    </div>
   </div>
 </template>
 
@@ -701,16 +698,4 @@ watch([() => props.width, () => props.height], handleResize);
   font-family: monospace;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
-
-.instructions {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #888;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 11px;
-}
-
 </style>

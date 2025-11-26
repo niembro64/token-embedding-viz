@@ -17,6 +17,14 @@ const canvasRef = ref<InstanceType<typeof EmbeddingCanvas3D> | null>(null);
 
 const analogyResults = computed(() => canvasRef.value?.analogyResults ?? []);
 
+// Sidebar visibility (for mobile)
+const sidebarVisible = ref(false);
+const isMobile = computed(() => viewportWidth.value < 768);
+
+function toggleSidebar() {
+  sidebarVisible.value = !sidebarVisible.value;
+}
+
 const points1D = computed(() => {
   const reduced = reduceTo1D(embeddings.value);
   // Convert 1D points to 3D on X axis (Y=0, Z=0)
@@ -84,48 +92,68 @@ onUnmounted(() => {
         />
       </div>
 
-      <!-- Sidebar with title and analogy grid -->
-      <div class="sidebar">
-        <div class="sidebar-header">
-          <h1>Token Embedding Visualization</h1>
-          <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D</p>
-          <p class="token-count">{{ embeddings.length }} tokens</p>
-        </div>
+      <!-- Mobile: floating controls always visible -->
+      <div v-if="isMobile" class="mobile-controls">
+        <button class="toggle-btn" @click="cycleDimensions">
+          {{ dimensions }}D
+        </button>
+        <button class="info-btn" @click="toggleSidebar">
+          ℹ
+        </button>
+      </div>
 
-        <div class="analogy-section">
-          <h2>Word Analogies</h2>
-          <div class="analogy-grid">
-            <div
-              v-for="(result, index) in analogyResults"
-              :key="index"
-              class="analogy-column"
-            >
-              <div class="analogy-pair">
-                <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
-                <span class="arrow" :style="{ color: result.color }">↓</span>
-                <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
-              </div>
-              <div class="analogy-pair">
-                <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
-                <span class="arrow" :style="{ color: result.color }">↓</span>
-                <div class="results-list">
-                  <span
-                    v-for="(token, i) in result.results"
-                    :key="i"
-                    class="token result"
-                    :style="{ color: result.color, opacity: 1 - i * 0.15 }"
-                  >{{ token }}</span>
+      <!-- Sidebar / Info panel -->
+      <div
+        class="sidebar"
+        :class="{ 'sidebar-visible': sidebarVisible, 'sidebar-mobile': isMobile }"
+        @click.self="isMobile && toggleSidebar()"
+      >
+        <div class="sidebar-content">
+          <button v-if="isMobile" class="close-btn" @click="toggleSidebar">×</button>
+
+          <div class="sidebar-header">
+            <h1>Token Embedding Visualization</h1>
+            <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D</p>
+            <p class="token-count">{{ embeddings.length }} tokens</p>
+          </div>
+
+          <div class="analogy-section">
+            <h2>Word Analogies</h2>
+            <div class="analogy-grid">
+              <div
+                v-for="(result, index) in analogyResults"
+                :key="index"
+                class="analogy-column"
+              >
+                <div class="analogy-pair">
+                  <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
+                  <span class="arrow" :style="{ color: result.color }">↓</span>
+                  <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
+                </div>
+                <div class="analogy-pair">
+                  <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
+                  <span class="arrow" :style="{ color: result.color }">↓</span>
+                  <div class="results-list">
+                    <span
+                      v-for="(token, i) in result.results"
+                      :key="i"
+                      class="token result"
+                      :style="{ color: result.color, opacity: 1 - i * 0.15 }"
+                    >{{ token }}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div class="overlay-controls">
-        <button class="toggle-btn" @click="cycleDimensions">
-          {{ dimensions }}D
-        </button>
+          <!-- Desktop: controls at bottom of sidebar -->
+          <div v-if="!isMobile" class="sidebar-footer">
+            <button class="toggle-btn" @click="cycleDimensions">
+              {{ dimensions }}D
+            </button>
+            <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
+          </div>
+        </div>
       </div>
     </template>
   </div>
@@ -160,7 +188,7 @@ onUnmounted(() => {
   color: #f44336;
 }
 
-/* Sidebar */
+/* Sidebar - Desktop */
 .sidebar {
   position: absolute;
   top: 0;
@@ -168,13 +196,17 @@ onUnmounted(() => {
   height: 100%;
   width: 280px;
   background: rgba(0, 0, 0, 0.8);
+  z-index: 10;
+  overflow-y: auto;
+}
+
+.sidebar-content {
   padding: 20px;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  z-index: 10;
-  overflow-y: auto;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 .sidebar-header h1 {
@@ -255,14 +287,20 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-/* Controls */
-.overlay-controls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 10;
+/* Sidebar footer - Desktop */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.sidebar-footer .instructions {
+  font-size: 0.7rem;
+  color: #666;
+  margin: 12px 0 0 0;
+}
+
+/* Buttons */
 .toggle-btn {
   background: #4cc9f0;
   color: #0d1117;
@@ -282,5 +320,78 @@ onUnmounted(() => {
 
 .toggle-btn:active {
   transform: scale(0.98);
+}
+
+.info-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: none;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.info-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile controls - always visible */
+.mobile-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 20;
+}
+
+/* Mobile sidebar - fullscreen overlay */
+.sidebar-mobile {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-mobile .sidebar-content {
+  position: relative;
+  padding: 60px 20px 20px;
+}
+
+.sidebar-mobile.sidebar-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-mobile .analogy-grid {
+  justify-content: center;
 }
 </style>
