@@ -61,6 +61,7 @@ interface Analogy {
 const analogies: Analogy[] = [
   { from: 'italy', to: 'pasta', apply: 'japan', color: 0x4466ff },
   { from: 'boy', to: 'girl', apply: 'man', color: 0xff4444 },
+  { from: 'run', to: 'ran', apply: 'walk', color: 0xffcc00 },
 ];
 
 // Runtime state for each analogy
@@ -344,17 +345,20 @@ function initializePoints() {
     );
     scene.add(state.applyArrow);
 
-    // Create question mark at apply arrow tip
-    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
-    state.questionMark = createTextSprite('?', colorHex, true);
-    state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
-    scene.add(state.questionMark);
-
-    // Create sphere at apply arrow tip with Fresnel effect
+    // Create sphere at apply arrow tip with Fresnel effect (render first)
     const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
     const sphereMaterial = createFresnelSphereMaterial(analogy.color);
     state.sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    state.sphere.renderOrder = 0;
     scene.add(state.sphere);
+
+    // Create question mark at apply arrow tip (render on top of sphere)
+    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
+    state.questionMark = createTextSprite('?', colorHex, true);
+    state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
+    state.questionMark.renderOrder = 1;
+    (state.questionMark.material as THREE.SpriteMaterial).depthTest = false;
+    scene.add(state.questionMark);
 
     return state;
   });
