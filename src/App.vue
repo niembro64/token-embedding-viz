@@ -72,6 +72,7 @@ onUnmounted(() => {
       <div class="canvas-fullscreen">
         <EmbeddingCanvas3D
           :points="currentPoints"
+          :dimensions="dimensions"
           :width="viewportWidth"
           :height="viewportHeight"
         />

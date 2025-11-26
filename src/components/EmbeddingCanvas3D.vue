@@ -7,9 +7,13 @@ import { normalize3D } from '../utils/pca';
 
 const props = defineProps<{
   points: ReducedEmbedding3D[];
+  dimensions: 1 | 2 | 3;
   width: number;
   height: number;
 }>();
+
+// Scale multipliers for each dimension
+const scaleByDimension = { 1: 0.4, 2: 0.7, 3: 1.0 };
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredToken = ref<string | null>(null);
@@ -36,10 +40,14 @@ interface PointState {
   current: THREE.Vector3;
   velocity: THREE.Vector3;
   target: THREE.Vector3;
+  currentScale: number;
+  scaleVelocity: number;
+  targetScale: number;
 }
 let pointStates: PointState[] = [];
 let pointsMesh: THREE.Points | null = null;
 let sprites: THREE.Sprite[] = [];
+const baseScale = { x: 4, y: 1 }; // Base sprite scale
 
 // Spring parameters (underdamped)
 const springK = 120;      // Spring stiffness
@@ -64,6 +72,8 @@ function createTextSprite(text: string): THREE.Sprite {
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
   const sprite = new THREE.Sprite(material);
   sprite.scale.set(4, 1, 1);
+  // Shift center to left edge so text is left-aligned from anchor point
+  sprite.center.set(0, 0.5);
 
   return sprite;
 }
@@ -128,12 +138,16 @@ function initializePoints() {
   if (!pointsGroup || !labelsGroup) return;
 
   const normalizedPoints = normalize3D(props.points, 10);
+  const initialScale = scaleByDimension[props.dimensions];
 
   // Initialize point states
   pointStates = normalizedPoints.map((point) => ({
     current: new THREE.Vector3(point.x, point.y, point.z),
     velocity: new THREE.Vector3(0, 0, 0),
     target: new THREE.Vector3(point.x, point.y, point.z),
+    currentScale: initialScale,
+    scaleVelocity: 0,
+    targetScale: initialScale,
   }));
 
   // Create points geometry
@@ -151,9 +165,10 @@ function initializePoints() {
     colors[i * 3 + 1] = color.g;
     colors[i * 3 + 2] = color.b;
 
-    // Create label sprite
+    // Create label sprite (position will be set in animate)
     const sprite = createTextSprite(point.token);
-    sprite.position.set(point.x + 0.3, point.y + 0.2, point.z);
+    sprite.position.set(point.x, point.y, point.z);
+    sprite.scale.set(baseScale.x * initialScale, baseScale.y * initialScale, 1);
     sprite.userData = { token: point.token, index: i };
     sprites.push(sprite);
     labelsGroup.add(sprite);
@@ -174,11 +189,13 @@ function initializePoints() {
 
 function updateTargets() {
   const normalizedPoints = normalize3D(props.points, 10);
+  const targetScale = scaleByDimension[props.dimensions];
 
   // Update targets for existing points
   normalizedPoints.forEach((point, i) => {
     if (pointStates[i]) {
       pointStates[i].target.set(point.x, point.y, point.z);
+      pointStates[i].targetScale = targetScale;
     }
   });
 }
@@ -189,29 +206,35 @@ function updateSpringPhysics() {
   const positions = pointsMesh.geometry.attributes.position.array as Float32Array;
 
   pointStates.forEach((state, i) => {
-    // Calculate spring force: F = -k * (x - target) - damping * v
+    // Position spring physics
     const displacement = new THREE.Vector3().subVectors(state.current, state.target);
     const springForce = displacement.multiplyScalar(-springK);
     const dampingForce = state.velocity.clone().multiplyScalar(-damping);
     const totalForce = springForce.add(dampingForce);
 
-    // Update velocity: v += F * dt
     state.velocity.add(totalForce.multiplyScalar(dt));
-
-    // Update position: x += v * dt
     state.current.add(state.velocity.clone().multiplyScalar(dt));
+
+    // Scale spring physics
+    const scaleDisplacement = state.currentScale - state.targetScale;
+    const scaleSpringForce = -springK * scaleDisplacement;
+    const scaleDampingForce = -damping * state.scaleVelocity;
+    const scaleTotalForce = scaleSpringForce + scaleDampingForce;
+
+    state.scaleVelocity += scaleTotalForce * dt;
+    state.currentScale += state.scaleVelocity * dt;
 
     // Update geometry
     positions[i * 3] = state.current.x;
     positions[i * 3 + 1] = state.current.y;
     positions[i * 3 + 2] = state.current.z;
 
-    // Update sprite position
+    // Update sprite scale (position handled in animate)
     if (sprites[i]) {
-      sprites[i].position.set(
-        state.current.x + 0.3,
-        state.current.y + 0.2,
-        state.current.z
+      sprites[i].scale.set(
+        baseScale.x * state.currentScale,
+        baseScale.y * state.currentScale,
+        1
       );
     }
   });
@@ -268,9 +291,21 @@ function animate() {
   // Update spring physics
   updateSpringPhysics();
 
-  // Make labels face camera
-  labelsGroup.children.forEach((sprite) => {
-    sprite.lookAt(camera.position);
+  // Position labels to the right of points from camera's perspective
+  const cameraRight = new THREE.Vector3();
+  camera.getWorldDirection(cameraRight);
+  cameraRight.cross(camera.up).normalize();
+
+  const labelOffset = 0.3;
+  labelsGroup.children.forEach((sprite, i) => {
+    if (pointStates[i]) {
+      const state = pointStates[i];
+      sprite.position.set(
+        state.current.x + cameraRight.x * labelOffset,
+        state.current.y + 0.1,
+        state.current.z + cameraRight.z * labelOffset
+      );
+    }
   });
 
   renderer.render(scene, camera);
