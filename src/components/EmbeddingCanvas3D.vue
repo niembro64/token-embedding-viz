@@ -19,7 +19,7 @@ const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredToken = ref<string | null>(null);
 
 // Track nearest tokens for each analogy (for the legend panel)
-const analogyResults = ref<{ from: string; to: string; apply: string; result: string; color: string }[]>([]);
+const analogyResults = ref<{ from: string; to: string; apply: string; results: string[]; color: string }[]>([]);
 
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
@@ -92,18 +92,16 @@ function findNearestPointDistance(position: THREE.Vector3): number {
   return minDistance;
 }
 
-// Helper to find the nearest token to a position
-function findNearestToken(position: THREE.Vector3): string {
-  let minDistance = Infinity;
-  let nearestToken = '?';
+// Helper to find the nearest tokens to a position (returns top N)
+function findNearestTokens(position: THREE.Vector3, count: number = 5): string[] {
+  const distances: { token: string; distance: number }[] = [];
   for (let i = 0; i < pointStates.length; i++) {
     const distance = position.distanceTo(pointStates[i].current);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearestToken = props.points[i]?.token || '?';
-    }
+    const token = props.points[i]?.token || '?';
+    distances.push({ token, distance });
   }
-  return nearestToken;
+  distances.sort((a, b) => a.distance - b.distance);
+  return distances.slice(0, count).map((d) => d.token);
 }
 
 // Create a Fresnel shader material for spheres (edges more visible than center)
@@ -520,7 +518,7 @@ function animate() {
         from: analogy.from,
         to: analogy.to,
         apply: analogy.apply,
-        result: '?',
+        results: ['?'],
         color: colorHex,
       });
       return;
@@ -562,13 +560,13 @@ function animate() {
       state.sphere.scale.setScalar(nearestDistance);
     }
 
-    // Track the nearest token for the legend
-    const nearestToken = findNearestToken(tipPos);
+    // Track the nearest tokens for the legend
+    const nearestTokens = findNearestTokens(tipPos, 5);
     newResults.push({
       from: analogy.from,
       to: analogy.to,
       apply: analogy.apply,
-      result: nearestToken,
+      results: nearestTokens,
       color: colorHex,
     });
   });
@@ -640,7 +638,14 @@ watch([() => props.width, () => props.height], handleResize);
         <div class="analogy-pair">
           <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
           <span class="arrow" :style="{ color: result.color }">↓</span>
-          <span class="token result" :style="{ color: result.color }">{{ result.result }}</span>
+          <div class="results-list">
+            <span
+              v-for="(token, i) in result.results"
+              :key="i"
+              class="token result"
+              :style="{ color: result.color, opacity: 1 - i * 0.15 }"
+            >{{ token }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -707,6 +712,7 @@ watch([() => props.width, () => props.height], handleResize);
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  min-width: 70px;
 }
 
 .analogy-pair {
@@ -727,9 +733,22 @@ watch([() => props.width, () => props.height], handleResize);
   line-height: 1;
 }
 
+.results-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .analogy-pair .token.result {
   padding: 2px 6px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
+  font-size: 12px;
+}
+
+.analogy-pair .token.result:first-child {
+  font-size: 14px;
+  font-weight: 700;
 }
 </style>
