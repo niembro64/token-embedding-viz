@@ -7,15 +7,10 @@ import type { TokenEmbedding } from './types/embedding';
 const embeddings = ref<TokenEmbedding[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const dimensions = ref<0 | 1 | 2 | 3>(3);
+const dimensions = ref<1 | 2 | 3>(3);
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
-
-const points0D = computed(() => {
-  // All points at origin - no dimensions to distinguish them
-  return embeddings.value.map((e) => ({ token: e.token, x: 0, y: 0, z: 0 }));
-});
 
 const points1D = computed(() => {
   const reduced = reduceTo1D(embeddings.value);
@@ -32,15 +27,13 @@ const points2D = computed(() => {
 const points3D = computed(() => reduceTo3D(embeddings.value));
 
 const currentPoints = computed(() => {
-  if (dimensions.value === 0) return points0D.value;
   if (dimensions.value === 1) return points1D.value;
   if (dimensions.value === 2) return points2D.value;
   return points3D.value;
 });
 
 function cycleDimensions() {
-  if (dimensions.value === 3) dimensions.value = 0;
-  else if (dimensions.value === 0) dimensions.value = 1;
+  if (dimensions.value === 3) dimensions.value = 1;
   else if (dimensions.value === 1) dimensions.value = 2;
   else dimensions.value = 3;
 }

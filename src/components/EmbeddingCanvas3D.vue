@@ -7,13 +7,13 @@ import { normalize3D } from '../utils/pca';
 
 const props = defineProps<{
   points: ReducedEmbedding3D[];
-  dimensions: 0 | 1 | 2 | 3;
+  dimensions: 1 | 2 | 3;
   width: number;
   height: number;
 }>();
 
 // Scale multipliers for each dimension
-const scaleByDimension: Record<number, number> = { 0: 0.2, 1: 0.4, 2: 0.7, 3: 1.0 };
+const scaleByDimension: Record<number, number> = { 1: 0.5, 2: 0.75, 3: 1.0 };
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredToken = ref<string | null>(null);
@@ -72,8 +72,8 @@ interface AnalogyState {
   fromIndex: number;
   toIndex: number;
   applyIndex: number;
-  fromToArrow: THREE.ArrowHelper | null;
-  applyArrow: THREE.ArrowHelper | null;
+  fromToArrow: THREE.Group | null;
+  applyArrow: THREE.Group | null;
   questionMark: THREE.Sprite | null;
   sphere: THREE.Mesh | null;
 }
@@ -102,6 +102,66 @@ function findNearestTokens(position: THREE.Vector3, count: number = 5): string[]
   }
   distances.sort((a, b) => a.distance - b.distance);
   return distances.slice(0, count).map((d) => d.token);
+}
+
+// Create a custom thick arrow (cylinder stem + cone head)
+function createThickArrow(
+  direction: THREE.Vector3,
+  origin: THREE.Vector3,
+  length: number,
+  color: number,
+  stemRadius: number = 0.04,
+  headLength: number = 0.3,
+  headRadius: number = 0.12
+): THREE.Group {
+  const group = new THREE.Group();
+
+  const stemLength = Math.max(0.01, length - headLength);
+
+  // Stem (cylinder)
+  const stemGeometry = new THREE.CylinderGeometry(stemRadius, stemRadius, stemLength, 8);
+  const stemMaterial = new THREE.MeshBasicMaterial({ color });
+  const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+  stem.position.y = stemLength / 2;
+  group.add(stem);
+
+  // Head (cone)
+  const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8);
+  const headMaterial = new THREE.MeshBasicMaterial({ color });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  head.position.y = stemLength + headLength / 2;
+  group.add(head);
+
+  // Orient the arrow to point in the given direction
+  group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  group.position.copy(origin);
+
+  return group;
+}
+
+// Update a thick arrow's direction and length
+function updateThickArrow(
+  arrow: THREE.Group,
+  direction: THREE.Vector3,
+  origin: THREE.Vector3,
+  length: number,
+  headLength: number = 0.3
+) {
+  const stemLength = Math.max(0.01, length - headLength);
+
+  // Update stem
+  const stem = arrow.children[0] as THREE.Mesh;
+  stem.geometry.dispose();
+  stem.geometry = new THREE.CylinderGeometry(0.04, 0.04, stemLength, 8);
+  stem.position.y = stemLength / 2;
+
+  // Update head position
+  const head = arrow.children[1] as THREE.Mesh;
+  head.position.y = stemLength + headLength / 2;
+
+  // Update orientation and position
+  arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  arrow.position.copy(origin);
 }
 
 // Create a Fresnel shader material for spheres (edges more visible than center)
@@ -339,25 +399,11 @@ function initializePoints() {
     difference.normalize();
 
     // Create arrow from "from" to "to"
-    state.fromToArrow = new THREE.ArrowHelper(
-      difference,
-      fromPos,
-      length,
-      analogy.color,
-      0.3,
-      0.15
-    );
+    state.fromToArrow = createThickArrow(difference, fromPos, length, analogy.color);
     scene.add(state.fromToArrow);
 
     // Create arrow from "apply" using same difference
-    state.applyArrow = new THREE.ArrowHelper(
-      difference,
-      applyPos,
-      length,
-      analogy.color,
-      0.3,
-      0.15
-    );
+    state.applyArrow = createThickArrow(difference, applyPos, length, analogy.color);
     scene.add(state.applyArrow);
 
     // Create sphere at apply arrow tip with Fresnel effect (render first)
@@ -533,16 +579,12 @@ function animate() {
 
     // Update from->to arrow
     if (state.fromToArrow) {
-      state.fromToArrow.position.copy(fromPos);
-      state.fromToArrow.setDirection(difference);
-      state.fromToArrow.setLength(length, 0.3, 0.15);
+      updateThickArrow(state.fromToArrow, difference, fromPos, length);
     }
 
     // Update apply arrow
     if (state.applyArrow) {
-      state.applyArrow.position.copy(applyPos);
-      state.applyArrow.setDirection(difference);
-      state.applyArrow.setLength(length, 0.3, 0.15);
+      updateThickArrow(state.applyArrow, difference, applyPos, length);
     }
 
     // Position and scale question mark at apply arrow tip
