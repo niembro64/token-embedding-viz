@@ -6,7 +6,10 @@ export function reduceTo1D(embeddings: TokenEmbedding[]): number[] {
   const pca = new PCA(matrix);
   const reduced = pca.predict(matrix, { nComponents: 1 });
 
-  return embeddings.map((_, index) => reduced.getRow(index)[0]);
+  return embeddings.map((_, index) => {
+    const row = reduced.getRow(index);
+    return row[0] ?? 0;
+  });
 }
 
 export function reduceTo2D(embeddings: TokenEmbedding[]): ReducedEmbedding2D[] {
@@ -14,11 +17,14 @@ export function reduceTo2D(embeddings: TokenEmbedding[]): ReducedEmbedding2D[] {
   const pca = new PCA(matrix);
   const reduced = pca.predict(matrix, { nComponents: 2 });
 
-  return embeddings.map((embedding, index) => ({
-    token: embedding.token,
-    x: reduced.getRow(index)[0],
-    y: reduced.getRow(index)[1],
-  }));
+  return embeddings.map((embedding, index) => {
+    const row = reduced.getRow(index);
+    return {
+      token: embedding.token,
+      x: row[0] ?? 0,
+      y: row[1] ?? 0,
+    };
+  });
 }
 
 export function reduceTo3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
@@ -26,12 +32,15 @@ export function reduceTo3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
   const pca = new PCA(matrix);
   const reduced = pca.predict(matrix, { nComponents: 3 });
 
-  return embeddings.map((embedding, index) => ({
-    token: embedding.token,
-    x: reduced.getRow(index)[0],
-    y: reduced.getRow(index)[1],
-    z: reduced.getRow(index)[2],
-  }));
+  return embeddings.map((embedding, index) => {
+    const row = reduced.getRow(index);
+    return {
+      token: embedding.token,
+      x: row[0] ?? 0,
+      y: row[1] ?? 0,
+      z: row[2] ?? 0,
+    };
+  });
 }
 
 export function normalizeToCanvas(

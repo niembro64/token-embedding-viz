@@ -100,7 +100,9 @@ function findNearestPointDistance(position: THREE.Vector3): number {
 function findNearestTokens(position: THREE.Vector3, count: number = 5): string[] {
   const distances: { token: string; distance: number }[] = [];
   for (let i = 0; i < pointStates.length; i++) {
-    const distance = position.distanceTo(pointStates[i].current);
+    const state = pointStates[i];
+    if (!state) continue;
+    const distance = position.distanceTo(state.current);
     const token = props.points[i]?.token || '?';
     distances.push({ token, distance });
   }
@@ -326,7 +328,7 @@ function initializePoints() {
   if (!pointsGroup || !labelsGroup) return;
 
   const normalizedPoints = normalize3D(props.points, 10);
-  const initialScale = scaleByDimension[props.dimensions];
+  const initialScale = scaleByDimension[props.dimensions] ?? 1.0;
 
   // Initialize point states
   pointStates = normalizedPoints.map((point) => ({
@@ -395,9 +397,14 @@ function initializePoints() {
       return state;
     }
 
-    const fromPos = pointStates[fromIndex].current;
-    const toPos = pointStates[toIndex].current;
-    const applyPos = pointStates[applyIndex].current;
+    const fromState = pointStates[fromIndex];
+    const toState = pointStates[toIndex];
+    const applyState = pointStates[applyIndex];
+    if (!fromState || !toState || !applyState) return state;
+
+    const fromPos = fromState.current;
+    const toPos = toState.current;
+    const applyPos = applyState.current;
     const difference = new THREE.Vector3().subVectors(toPos, fromPos);
     const length = difference.length();
     difference.normalize();
@@ -431,7 +438,7 @@ function initializePoints() {
 
 function updateTargets() {
   const normalizedPoints = normalize3D(props.points, 10);
-  const targetScale = scaleByDimension[props.dimensions];
+  const targetScale = scaleByDimension[props.dimensions] ?? 1.0;
 
   // Update targets for existing points
   normalizedPoints.forEach((point, i) => {
@@ -561,6 +568,7 @@ function animate() {
 
   analogyStates.forEach((state, index) => {
     const analogy = analogies[index];
+    if (!analogy) return;
     const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
 
     if (state.fromIndex === -1 || state.toIndex === -1 || state.applyIndex === -1) {
@@ -574,9 +582,14 @@ function animate() {
       return;
     }
 
-    const fromPos = pointStates[state.fromIndex].current;
-    const toPos = pointStates[state.toIndex].current;
-    const applyPos = pointStates[state.applyIndex].current;
+    const fromPointState = pointStates[state.fromIndex];
+    const toPointState = pointStates[state.toIndex];
+    const applyPointState = pointStates[state.applyIndex];
+    if (!fromPointState || !toPointState || !applyPointState) return;
+
+    const fromPos = fromPointState.current;
+    const toPos = toPointState.current;
+    const applyPos = applyPointState.current;
     const difference = new THREE.Vector3().subVectors(toPos, fromPos);
     const length = difference.length();
     difference.normalize();
@@ -595,7 +608,7 @@ function animate() {
     const tipPos = applyPos.clone().add(difference.clone().multiplyScalar(length));
     if (state.questionMark) {
       state.questionMark.position.copy(tipPos);
-      const currentScale = pointStates[state.applyIndex].currentScale;
+      const currentScale = applyPointState.currentScale;
       state.questionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
     }
 

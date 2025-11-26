@@ -28,7 +28,7 @@ function toggleSidebar() {
 const points1D = computed(() => {
   const reduced = reduceTo1D(embeddings.value);
   // Convert 1D points to 3D on X axis (Y=0, Z=0)
-  return embeddings.value.map((e, i) => ({ token: e.token, x: reduced[i], y: 0, z: 0 }));
+  return embeddings.value.map((e, i) => ({ token: e.token, x: reduced[i] ?? 0, y: 0, z: 0 }));
 });
 
 const points2D = computed(() => {
