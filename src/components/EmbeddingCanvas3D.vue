@@ -49,17 +49,34 @@ let pointsMesh: THREE.Points | null = null;
 let sprites: THREE.Sprite[] = [];
 const baseScale = { x: 4, y: 1 }; // Base sprite scale
 
-// Arrow from "italy" to "pasta"
-let arrow: THREE.ArrowHelper | null = null;
+// Arrow from "italy" to "pasta" (blue shades)
+let italyPastaArrow: THREE.ArrowHelper | null = null;
 let italyIndex = -1;
 let pastaIndex = -1;
+
+// Token math: japan + (pasta - italy)
+let japanArrow: THREE.ArrowHelper | null = null;
+let japanIndex = -1;
+
+// Arrow from "boy" to "girl" (red shades)
+let boyGirlArrow: THREE.ArrowHelper | null = null;
+let boyIndex = -1;
+let girlIndex = -1;
+
+// Token math: man + (girl - boy)
+let manArrow: THREE.ArrowHelper | null = null;
+let manIndex = -1;
+
+// Question mark sprites at arrow tips
+let japanQuestionMark: THREE.Sprite | null = null;
+let manQuestionMark: THREE.Sprite | null = null;
 
 // Spring parameters (underdamped)
 const springK = 120; // Spring stiffness
 const damping = 12; // Damping coefficient (underdamped < 2*sqrt(k))
 const dt = 1 / 60; // Time step
 
-function createTextSprite(text: string): THREE.Sprite {
+function createTextSprite(text: string, color: string = '#e0e0e0', centered: boolean = false): THREE.Sprite {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d')!;
   canvas.width = 512;
@@ -69,9 +86,9 @@ function createTextSprite(text: string): THREE.Sprite {
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   context.font = 'bold 64px monospace';
-  context.fillStyle = '#e0e0e0';
-  context.textAlign = 'left';
-  context.fillText(text, 8, 80);
+  context.fillStyle = color;
+  context.textAlign = centered ? 'center' : 'left';
+  context.fillText(text, centered ? canvas.width / 2 : 8, 80);
 
   const texture = new THREE.CanvasTexture(canvas);
   const material = new THREE.SpriteMaterial({
@@ -80,8 +97,8 @@ function createTextSprite(text: string): THREE.Sprite {
   });
   const sprite = new THREE.Sprite(material);
   sprite.scale.set(4, 1, 1);
-  // Shift center to left edge so text is left-aligned from anchor point
-  sprite.center.set(0, 0.5);
+  // Center or left-align based on parameter
+  sprite.center.set(centered ? 0.5 : 0, 0.5);
 
   return sprite;
 }
@@ -221,11 +238,17 @@ function initializePoints() {
   pointsMesh = new THREE.Points(geometry, material);
   pointsGroup.add(pointsMesh);
 
-  // Find indices for italy and pasta
+  // Find indices for italy, pasta, and japan
   italyIndex = normalizedPoints.findIndex((p) => p.token === 'italy');
   pastaIndex = normalizedPoints.findIndex((p) => p.token === 'pasta');
+  japanIndex = normalizedPoints.findIndex((p) => p.token === 'japan');
 
-  // Create arrow from italy to pasta
+  // Find indices for boy, girl, and man
+  boyIndex = normalizedPoints.findIndex((p) => p.token === 'boy');
+  girlIndex = normalizedPoints.findIndex((p) => p.token === 'girl');
+  manIndex = normalizedPoints.findIndex((p) => p.token === 'man');
+
+  // Create arrow from italy to pasta (dark blue)
   if (italyIndex !== -1 && pastaIndex !== -1) {
     const italyPos = pointStates[italyIndex].current;
     const pastaPos = pointStates[pastaIndex].current;
@@ -233,15 +256,88 @@ function initializePoints() {
     const length = direction.length();
     direction.normalize();
 
-    arrow = new THREE.ArrowHelper(
+    italyPastaArrow = new THREE.ArrowHelper(
       direction,
       italyPos,
       length,
-      0xff4444, // red color
+      0x4466ff, // blue
       0.3, // head length
       0.15 // head width
     );
-    scene.add(arrow);
+    scene.add(italyPastaArrow);
+  }
+
+  // Create arrow from japan using same difference (light blue) - token math!
+  if (italyIndex !== -1 && pastaIndex !== -1 && japanIndex !== -1) {
+    const italyPos = pointStates[italyIndex].current;
+    const pastaPos = pointStates[pastaIndex].current;
+    const japanPos = pointStates[japanIndex].current;
+    const difference = new THREE.Vector3().subVectors(pastaPos, italyPos);
+    const length = difference.length();
+    difference.normalize();
+
+    japanArrow = new THREE.ArrowHelper(
+      difference,
+      japanPos,
+      length,
+      0x4466ff, // blue
+      0.3, // head length
+      0.15 // head width
+    );
+    scene.add(japanArrow);
+  }
+
+  // Create arrow from boy to girl (dark red)
+  if (boyIndex !== -1 && girlIndex !== -1) {
+    const boyPos = pointStates[boyIndex].current;
+    const girlPos = pointStates[girlIndex].current;
+    const direction = new THREE.Vector3().subVectors(girlPos, boyPos);
+    const length = direction.length();
+    direction.normalize();
+
+    boyGirlArrow = new THREE.ArrowHelper(
+      direction,
+      boyPos,
+      length,
+      0xff4444, // red
+      0.3, // head length
+      0.15 // head width
+    );
+    scene.add(boyGirlArrow);
+  }
+
+  // Create arrow from man using same difference (light red/pink) - token math!
+  if (boyIndex !== -1 && girlIndex !== -1 && manIndex !== -1) {
+    const boyPos = pointStates[boyIndex].current;
+    const girlPos = pointStates[girlIndex].current;
+    const manPos = pointStates[manIndex].current;
+    const difference = new THREE.Vector3().subVectors(girlPos, boyPos);
+    const length = difference.length();
+    difference.normalize();
+
+    manArrow = new THREE.ArrowHelper(
+      difference,
+      manPos,
+      length,
+      0xff4444, // red
+      0.3, // head length
+      0.15 // head width
+    );
+    scene.add(manArrow);
+  }
+
+  // Create question mark for japan arrow (blue) - 2x size, centered
+  if (japanArrow) {
+    japanQuestionMark = createTextSprite('?', '#4466ff', true);
+    japanQuestionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
+    scene.add(japanQuestionMark);
+  }
+
+  // Create question mark for man arrow (red) - 2x size, centered
+  if (manArrow) {
+    manQuestionMark = createTextSprite('?', '#ff4444', true);
+    manQuestionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
+    scene.add(manQuestionMark);
   }
 }
 
@@ -372,17 +468,62 @@ function animate() {
     }
   });
 
-  // Update arrow from italy to pasta
-  if (arrow && italyIndex !== -1 && pastaIndex !== -1) {
+  // Update arrow from italy to pasta (blue)
+  if (italyPastaArrow && italyIndex !== -1 && pastaIndex !== -1) {
     const italyPos = pointStates[italyIndex].current;
     const pastaPos = pointStates[pastaIndex].current;
-    const direction = new THREE.Vector3().subVectors(pastaPos, italyPos);
-    const length = direction.length();
-    direction.normalize();
+    const difference = new THREE.Vector3().subVectors(pastaPos, italyPos);
+    const length = difference.length();
+    difference.normalize();
 
-    arrow.position.copy(italyPos);
-    arrow.setDirection(direction);
-    arrow.setLength(length, 0.3, 0.15);
+    italyPastaArrow.position.copy(italyPos);
+    italyPastaArrow.setDirection(difference);
+    italyPastaArrow.setLength(length, 0.3, 0.15);
+
+    // Update japan arrow with same difference (blue)
+    if (japanArrow && japanIndex !== -1) {
+      const japanPos = pointStates[japanIndex].current;
+      japanArrow.position.copy(japanPos);
+      japanArrow.setDirection(difference);
+      japanArrow.setLength(length, 0.3, 0.15);
+
+      // Position and scale question mark at arrow tip
+      if (japanQuestionMark) {
+        const tipPos = japanPos.clone().add(difference.clone().multiplyScalar(length));
+        japanQuestionMark.position.copy(tipPos);
+        const currentScale = pointStates[japanIndex].currentScale;
+        japanQuestionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
+      }
+    }
+  }
+
+  // Update arrow from boy to girl (red)
+  if (boyGirlArrow && boyIndex !== -1 && girlIndex !== -1) {
+    const boyPos = pointStates[boyIndex].current;
+    const girlPos = pointStates[girlIndex].current;
+    const difference = new THREE.Vector3().subVectors(girlPos, boyPos);
+    const length = difference.length();
+    difference.normalize();
+
+    boyGirlArrow.position.copy(boyPos);
+    boyGirlArrow.setDirection(difference);
+    boyGirlArrow.setLength(length, 0.3, 0.15);
+
+    // Update man arrow with same difference (red)
+    if (manArrow && manIndex !== -1) {
+      const manPos = pointStates[manIndex].current;
+      manArrow.position.copy(manPos);
+      manArrow.setDirection(difference);
+      manArrow.setLength(length, 0.3, 0.15);
+
+      // Position and scale question mark at arrow tip
+      if (manQuestionMark) {
+        const tipPos = manPos.clone().add(difference.clone().multiplyScalar(length));
+        manQuestionMark.position.copy(tipPos);
+        const currentScale = pointStates[manIndex].currentScale;
+        manQuestionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
+      }
+    }
   }
 
   renderer.render(scene, camera);
