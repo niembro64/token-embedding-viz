@@ -88,6 +88,45 @@ function findNearestPointDistance(position: THREE.Vector3): number {
   return minDistance;
 }
 
+// Create a Fresnel shader material for spheres (edges more visible than center)
+function createFresnelSphereMaterial(color: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: new THREE.Color(color) },
+      fresnelPower: { value: 2.0 },
+      opacity: { value: 0.4 },
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vViewPosition = -mvPosition.xyz;
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 color;
+      uniform float fresnelPower;
+      uniform float opacity;
+
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+
+      void main() {
+        vec3 viewDir = normalize(vViewPosition);
+        float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), fresnelPower);
+        gl_FragColor = vec4(color, fresnel * opacity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+}
+
 // Spring parameters (underdamped)
 const springK = 120; // Spring stiffness
 const damping = 12; // Damping coefficient (underdamped < 2*sqrt(k))
@@ -311,14 +350,9 @@ function initializePoints() {
     state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
     scene.add(state.questionMark);
 
-    // Create sphere at apply arrow tip
+    // Create sphere at apply arrow tip with Fresnel effect
     const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const sphereMaterial = new THREE.MeshBasicMaterial({
-      color: analogy.color,
-      transparent: true,
-      opacity: 0.15,
-      depthWrite: false,
-    });
+    const sphereMaterial = createFresnelSphereMaterial(analogy.color);
     state.sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
     scene.add(state.sphere);
 
