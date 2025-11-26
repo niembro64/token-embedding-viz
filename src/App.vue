@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import EmbeddingCanvas3D from './components/EmbeddingCanvas3D.vue';
-import { reduceTo2D, reduceTo3D } from './utils/pca';
+import { reduceTo1D, reduceTo2D, reduceTo3D } from './utils/pca';
 import type { TokenEmbedding } from './types/embedding';
 
 const embeddings = ref<TokenEmbedding[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const is3D = ref(true);
+const dimensions = ref<1 | 2 | 3>(3);
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
+
+const points1D = computed(() => {
+  const reduced = reduceTo1D(embeddings.value);
+  // Convert 1D points to 3D on X axis (Y=0, Z=0)
+  return embeddings.value.map((e, i) => ({ token: e.token, x: reduced[i], y: 0, z: 0 }));
+});
 
 const points2D = computed(() => {
   const reduced = reduceTo2D(embeddings.value);
@@ -20,10 +26,16 @@ const points2D = computed(() => {
 
 const points3D = computed(() => reduceTo3D(embeddings.value));
 
-const currentPoints = computed(() => is3D.value ? points3D.value : points2D.value);
+const currentPoints = computed(() => {
+  if (dimensions.value === 1) return points1D.value;
+  if (dimensions.value === 2) return points2D.value;
+  return points3D.value;
+});
 
-function toggleView() {
-  is3D.value = !is3D.value;
+function cycleDimensions() {
+  if (dimensions.value === 3) dimensions.value = 2;
+  else if (dimensions.value === 2) dimensions.value = 1;
+  else dimensions.value = 3;
 }
 
 function handleResize() {
@@ -67,12 +79,12 @@ onUnmounted(() => {
 
       <div class="overlay-header">
         <h1>Token Embedding Visualization</h1>
-        <p class="subtitle">PCA reduction from 50D to {{ is3D ? '3D' : '2D' }}</p>
+        <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D</p>
       </div>
 
       <div class="overlay-controls">
-        <button class="toggle-btn" @click="toggleView">
-          {{ is3D ? '2D' : '3D' }}
+        <button class="toggle-btn" @click="cycleDimensions">
+          {{ dimensions }}D
         </button>
       </div>
 

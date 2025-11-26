@@ -1,6 +1,14 @@
 import { PCA } from 'ml-pca';
 import type { TokenEmbedding, ReducedEmbedding2D, ReducedEmbedding3D } from '../types/embedding';
 
+export function reduceTo1D(embeddings: TokenEmbedding[]): number[] {
+  const matrix = embeddings.map(e => e.embedding);
+  const pca = new PCA(matrix);
+  const reduced = pca.predict(matrix, { nComponents: 1 });
+
+  return embeddings.map((_, index) => reduced.getRow(index)[0]);
+}
+
 export function reduceTo2D(embeddings: TokenEmbedding[]): ReducedEmbedding2D[] {
   const matrix = embeddings.map(e => e.embedding);
   const pca = new PCA(matrix);
@@ -71,15 +79,16 @@ export function normalize3D(points: ReducedEmbedding3D[], scale: number = 10): R
 
   const rangeX = maxX - minX || 1;
   const rangeY = maxY - minY;
-  const rangeZ = maxZ - minZ || 1;
+  const rangeZ = maxZ - minZ;
 
-  // If Y range is 0 (2D points), keep Y at original value (0)
+  // If Y/Z range is 0 (2D/1D points), keep at original value (0)
   const hasYVariance = rangeY > 0;
+  const hasZVariance = rangeZ > 0;
 
   return points.map(point => ({
     token: point.token,
     x: ((point.x - minX) / rangeX - 0.5) * scale,
     y: hasYVariance ? ((point.y - minY) / rangeY - 0.5) * scale : point.y,
-    z: ((point.z - minZ) / rangeZ - 0.5) * scale,
+    z: hasZVariance ? ((point.z - minZ) / rangeZ - 0.5) * scale : point.z,
   }));
 }
