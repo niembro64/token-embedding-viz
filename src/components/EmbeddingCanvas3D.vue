@@ -63,12 +63,12 @@ interface Analogy {
   color: number;
 }
 
-// Configure analogies here
+// Configure analogies here (colors balanced for equal perceived brightness)
 const analogies: Analogy[] = [
-  { from: 'italy', to: 'pasta', apply: 'japan', color: 0x4466ff },
-  { from: 'boy', to: 'girl', apply: 'man', color: 0xff4444 },
-  { from: 'run', to: 'ran', apply: 'walk', color: 0xffcc00 },
-  { from: 'london', to: 'england', apply: 'beijing', color: 0x44cc44 },
+  { from: 'italy', to: 'pasta', apply: 'japan', color: 0x60a5fa },    // blue
+  { from: 'boy', to: 'girl', apply: 'man', color: 0xf87171 },         // red
+  { from: 'run', to: 'ran', apply: 'walk', color: 0xfbbf24 },         // yellow
+  { from: 'london', to: 'england', apply: 'beijing', color: 0x4ade80 }, // green
 ];
 
 // Runtime state for each analogy
@@ -345,7 +345,7 @@ function initializePoints() {
   const positions = new Float32Array(normalizedPoints.length * 3);
   const colors = new Float32Array(normalizedPoints.length * 3);
 
-  const color = new THREE.Color(0x4cc9f0);
+  const color = new THREE.Color(0xc084fc); // purple
 
   normalizedPoints.forEach((point, i) => {
     positions[i * 3] = point.x;

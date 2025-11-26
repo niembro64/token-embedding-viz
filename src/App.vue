@@ -299,7 +299,7 @@ onUnmounted(() => {
 
 .bottom-bar-left h1 {
   font-size: 1.1rem;
-  color: #4cc9f0;
+  color: #c084fc;
   margin: 0;
 }
 
