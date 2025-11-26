@@ -323,7 +323,7 @@ onUnmounted(() => {
 
 /* Buttons */
 .toggle-btn {
-  background: #4cc9f0;
+  background: #c084fc;
   color: #0d1117;
   border: none;
   padding: 10px 20px;
@@ -336,7 +336,7 @@ onUnmounted(() => {
 }
 
 .toggle-btn:hover {
-  background: #3db8df;
+  background: #a855f7;
 }
 
 .toggle-btn:active {
@@ -361,8 +361,8 @@ onUnmounted(() => {
 }
 
 .analogies-btn.active {
-  background: rgba(76, 201, 240, 0.3);
-  color: #4cc9f0;
+  background: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
 }
 
 .analogies-btn:active {
