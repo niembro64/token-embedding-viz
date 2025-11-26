@@ -665,10 +665,6 @@ watch([() => props.width, () => props.height], handleResize);
 <template>
   <div class="canvas-container">
     <div ref="containerRef" class="three-container" />
-    <div v-if="hoveredToken" class="hover-label">
-      {{ hoveredToken }}
-    </div>
-
   </div>
 </template>
 
@@ -684,18 +680,5 @@ watch([() => props.width, () => props.height], handleResize);
 .three-container {
   width: 100%;
   height: 100%;
-}
-
-.hover-label {
-  position: absolute;
-  top: 70px;
-  left: 20px;
-  background: rgba(51, 51, 51, 0.95);
-  color: #4cc9f0;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: monospace;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 </style>

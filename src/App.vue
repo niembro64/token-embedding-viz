@@ -203,9 +203,16 @@ onUnmounted(() => {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  justify-content: center;
+  align-items: center;
   min-height: 100%;
   box-sizing: border-box;
+}
+
+.analogy-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .analogy-section h2 {
@@ -214,13 +221,14 @@ onUnmounted(() => {
   margin: 0 0 16px 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-align: center;
 }
 
 .analogy-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .analogy-column {
