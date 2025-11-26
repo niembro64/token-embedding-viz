@@ -49,31 +49,32 @@ let pointsMesh: THREE.Points | null = null;
 let sprites: THREE.Sprite[] = [];
 const baseScale = { x: 4, y: 1 }; // Base sprite scale
 
-// Arrow from "italy" to "pasta" (blue shades)
-let italyPastaArrow: THREE.ArrowHelper | null = null;
-let italyIndex = -1;
-let pastaIndex = -1;
+// Analogy definition: "from" is to "to" as "apply" is to "?"
+interface Analogy {
+  from: string;
+  to: string;
+  apply: string;
+  color: number;
+}
 
-// Token math: japan + (pasta - italy)
-let japanArrow: THREE.ArrowHelper | null = null;
-let japanIndex = -1;
+// Configure analogies here
+const analogies: Analogy[] = [
+  { from: 'italy', to: 'pasta', apply: 'japan', color: 0x4466ff },
+  { from: 'boy', to: 'girl', apply: 'man', color: 0xff4444 },
+];
 
-// Arrow from "boy" to "girl" (red shades)
-let boyGirlArrow: THREE.ArrowHelper | null = null;
-let boyIndex = -1;
-let girlIndex = -1;
+// Runtime state for each analogy
+interface AnalogyState {
+  fromIndex: number;
+  toIndex: number;
+  applyIndex: number;
+  fromToArrow: THREE.ArrowHelper | null;
+  applyArrow: THREE.ArrowHelper | null;
+  questionMark: THREE.Sprite | null;
+  sphere: THREE.Mesh | null;
+}
 
-// Token math: man + (girl - boy)
-let manArrow: THREE.ArrowHelper | null = null;
-let manIndex = -1;
-
-// Question mark sprites at arrow tips
-let japanQuestionMark: THREE.Sprite | null = null;
-let manQuestionMark: THREE.Sprite | null = null;
-
-// Spheres showing distance to nearest point
-let japanSphere: THREE.Mesh | null = null;
-let manSphere: THREE.Mesh | null = null;
+let analogyStates: AnalogyState[] = [];
 
 // Helper to find distance to nearest point
 function findNearestPointDistance(position: THREE.Vector3): number {
@@ -254,133 +255,75 @@ function initializePoints() {
   pointsMesh = new THREE.Points(geometry, material);
   pointsGroup.add(pointsMesh);
 
-  // Find indices for italy, pasta, and japan
-  italyIndex = normalizedPoints.findIndex((p) => p.token === 'italy');
-  pastaIndex = normalizedPoints.findIndex((p) => p.token === 'pasta');
-  japanIndex = normalizedPoints.findIndex((p) => p.token === 'japan');
+  // Initialize analogies
+  analogyStates = analogies.map((analogy) => {
+    const fromIndex = normalizedPoints.findIndex((p) => p.token === analogy.from);
+    const toIndex = normalizedPoints.findIndex((p) => p.token === analogy.to);
+    const applyIndex = normalizedPoints.findIndex((p) => p.token === analogy.apply);
 
-  // Find indices for boy, girl, and man
-  boyIndex = normalizedPoints.findIndex((p) => p.token === 'boy');
-  girlIndex = normalizedPoints.findIndex((p) => p.token === 'girl');
-  manIndex = normalizedPoints.findIndex((p) => p.token === 'man');
+    const state: AnalogyState = {
+      fromIndex,
+      toIndex,
+      applyIndex,
+      fromToArrow: null,
+      applyArrow: null,
+      questionMark: null,
+      sphere: null,
+    };
 
-  // Create arrow from italy to pasta (dark blue)
-  if (italyIndex !== -1 && pastaIndex !== -1) {
-    const italyPos = pointStates[italyIndex].current;
-    const pastaPos = pointStates[pastaIndex].current;
-    const direction = new THREE.Vector3().subVectors(pastaPos, italyPos);
-    const length = direction.length();
-    direction.normalize();
+    // Skip if any token not found
+    if (fromIndex === -1 || toIndex === -1 || applyIndex === -1) {
+      return state;
+    }
 
-    italyPastaArrow = new THREE.ArrowHelper(
-      direction,
-      italyPos,
-      length,
-      0x4466ff, // blue
-      0.3, // head length
-      0.15 // head width
-    );
-    scene.add(italyPastaArrow);
-  }
-
-  // Create arrow from japan using same difference (light blue) - token math!
-  if (italyIndex !== -1 && pastaIndex !== -1 && japanIndex !== -1) {
-    const italyPos = pointStates[italyIndex].current;
-    const pastaPos = pointStates[pastaIndex].current;
-    const japanPos = pointStates[japanIndex].current;
-    const difference = new THREE.Vector3().subVectors(pastaPos, italyPos);
+    const fromPos = pointStates[fromIndex].current;
+    const toPos = pointStates[toIndex].current;
+    const applyPos = pointStates[applyIndex].current;
+    const difference = new THREE.Vector3().subVectors(toPos, fromPos);
     const length = difference.length();
     difference.normalize();
 
-    japanArrow = new THREE.ArrowHelper(
+    // Create arrow from "from" to "to"
+    state.fromToArrow = new THREE.ArrowHelper(
       difference,
-      japanPos,
+      fromPos,
       length,
-      0x4466ff, // blue
-      0.3, // head length
-      0.15 // head width
+      analogy.color,
+      0.3,
+      0.15
     );
-    scene.add(japanArrow);
-  }
+    scene.add(state.fromToArrow);
 
-  // Create arrow from boy to girl (dark red)
-  if (boyIndex !== -1 && girlIndex !== -1) {
-    const boyPos = pointStates[boyIndex].current;
-    const girlPos = pointStates[girlIndex].current;
-    const direction = new THREE.Vector3().subVectors(girlPos, boyPos);
-    const length = direction.length();
-    direction.normalize();
-
-    boyGirlArrow = new THREE.ArrowHelper(
-      direction,
-      boyPos,
-      length,
-      0xff4444, // red
-      0.3, // head length
-      0.15 // head width
-    );
-    scene.add(boyGirlArrow);
-  }
-
-  // Create arrow from man using same difference (light red/pink) - token math!
-  if (boyIndex !== -1 && girlIndex !== -1 && manIndex !== -1) {
-    const boyPos = pointStates[boyIndex].current;
-    const girlPos = pointStates[girlIndex].current;
-    const manPos = pointStates[manIndex].current;
-    const difference = new THREE.Vector3().subVectors(girlPos, boyPos);
-    const length = difference.length();
-    difference.normalize();
-
-    manArrow = new THREE.ArrowHelper(
+    // Create arrow from "apply" using same difference
+    state.applyArrow = new THREE.ArrowHelper(
       difference,
-      manPos,
+      applyPos,
       length,
-      0xff4444, // red
-      0.3, // head length
-      0.15 // head width
+      analogy.color,
+      0.3,
+      0.15
     );
-    scene.add(manArrow);
-  }
+    scene.add(state.applyArrow);
 
-  // Create question mark for japan arrow (blue) - 2x size, centered
-  if (japanArrow) {
-    japanQuestionMark = createTextSprite('?', '#4466ff', true);
-    japanQuestionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
-    scene.add(japanQuestionMark);
-  }
+    // Create question mark at apply arrow tip
+    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
+    state.questionMark = createTextSprite('?', colorHex, true);
+    state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
+    scene.add(state.questionMark);
 
-  // Create question mark for man arrow (red) - 2x size, centered
-  if (manArrow) {
-    manQuestionMark = createTextSprite('?', '#ff4444', true);
-    manQuestionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
-    scene.add(manQuestionMark);
-  }
-
-  // Create sphere for japan arrow tip (blue, transparent)
-  if (japanArrow) {
+    // Create sphere at apply arrow tip
     const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
     const sphereMaterial = new THREE.MeshBasicMaterial({
-      color: 0x4466ff,
+      color: analogy.color,
       transparent: true,
       opacity: 0.15,
       depthWrite: false,
     });
-    japanSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    scene.add(japanSphere);
-  }
+    state.sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    scene.add(state.sphere);
 
-  // Create sphere for man arrow tip (red, transparent)
-  if (manArrow) {
-    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const sphereMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff4444,
-      transparent: true,
-      opacity: 0.15,
-      depthWrite: false,
-    });
-    manSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    scene.add(manSphere);
-  }
+    return state;
+  });
 }
 
 function updateTargets() {
@@ -510,77 +453,46 @@ function animate() {
     }
   });
 
-  // Update arrow from italy to pasta (blue)
-  if (italyPastaArrow && italyIndex !== -1 && pastaIndex !== -1) {
-    const italyPos = pointStates[italyIndex].current;
-    const pastaPos = pointStates[pastaIndex].current;
-    const difference = new THREE.Vector3().subVectors(pastaPos, italyPos);
+  // Update all analogies
+  analogyStates.forEach((state) => {
+    if (state.fromIndex === -1 || state.toIndex === -1 || state.applyIndex === -1) return;
+
+    const fromPos = pointStates[state.fromIndex].current;
+    const toPos = pointStates[state.toIndex].current;
+    const applyPos = pointStates[state.applyIndex].current;
+    const difference = new THREE.Vector3().subVectors(toPos, fromPos);
     const length = difference.length();
     difference.normalize();
 
-    italyPastaArrow.position.copy(italyPos);
-    italyPastaArrow.setDirection(difference);
-    italyPastaArrow.setLength(length, 0.3, 0.15);
-
-    // Update japan arrow with same difference (blue)
-    if (japanArrow && japanIndex !== -1) {
-      const japanPos = pointStates[japanIndex].current;
-      japanArrow.position.copy(japanPos);
-      japanArrow.setDirection(difference);
-      japanArrow.setLength(length, 0.3, 0.15);
-
-      // Position and scale question mark at arrow tip
-      const tipPos = japanPos.clone().add(difference.clone().multiplyScalar(length));
-      if (japanQuestionMark) {
-        japanQuestionMark.position.copy(tipPos);
-        const currentScale = pointStates[japanIndex].currentScale;
-        japanQuestionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
-      }
-
-      // Position and scale sphere at arrow tip
-      if (japanSphere) {
-        japanSphere.position.copy(tipPos);
-        const nearestDistance = findNearestPointDistance(tipPos);
-        japanSphere.scale.setScalar(nearestDistance);
-      }
+    // Update from->to arrow
+    if (state.fromToArrow) {
+      state.fromToArrow.position.copy(fromPos);
+      state.fromToArrow.setDirection(difference);
+      state.fromToArrow.setLength(length, 0.3, 0.15);
     }
-  }
 
-  // Update arrow from boy to girl (red)
-  if (boyGirlArrow && boyIndex !== -1 && girlIndex !== -1) {
-    const boyPos = pointStates[boyIndex].current;
-    const girlPos = pointStates[girlIndex].current;
-    const difference = new THREE.Vector3().subVectors(girlPos, boyPos);
-    const length = difference.length();
-    difference.normalize();
-
-    boyGirlArrow.position.copy(boyPos);
-    boyGirlArrow.setDirection(difference);
-    boyGirlArrow.setLength(length, 0.3, 0.15);
-
-    // Update man arrow with same difference (red)
-    if (manArrow && manIndex !== -1) {
-      const manPos = pointStates[manIndex].current;
-      manArrow.position.copy(manPos);
-      manArrow.setDirection(difference);
-      manArrow.setLength(length, 0.3, 0.15);
-
-      // Position and scale question mark at arrow tip
-      const tipPos = manPos.clone().add(difference.clone().multiplyScalar(length));
-      if (manQuestionMark) {
-        manQuestionMark.position.copy(tipPos);
-        const currentScale = pointStates[manIndex].currentScale;
-        manQuestionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
-      }
-
-      // Position and scale sphere at arrow tip
-      if (manSphere) {
-        manSphere.position.copy(tipPos);
-        const nearestDistance = findNearestPointDistance(tipPos);
-        manSphere.scale.setScalar(nearestDistance);
-      }
+    // Update apply arrow
+    if (state.applyArrow) {
+      state.applyArrow.position.copy(applyPos);
+      state.applyArrow.setDirection(difference);
+      state.applyArrow.setLength(length, 0.3, 0.15);
     }
-  }
+
+    // Position and scale question mark at apply arrow tip
+    const tipPos = applyPos.clone().add(difference.clone().multiplyScalar(length));
+    if (state.questionMark) {
+      state.questionMark.position.copy(tipPos);
+      const currentScale = pointStates[state.applyIndex].currentScale;
+      state.questionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
+    }
+
+    // Position and scale sphere at apply arrow tip
+    if (state.sphere) {
+      state.sphere.position.copy(tipPos);
+      const nearestDistance = findNearestPointDistance(tipPos);
+      state.sphere.scale.setScalar(nearestDistance);
+    }
+  });
 
   renderer.render(scene, camera);
 }
