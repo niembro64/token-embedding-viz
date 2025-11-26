@@ -18,6 +18,9 @@ const scaleByDimension: Record<number, number> = { 0: 0.2, 1: 0.4, 2: 0.7, 3: 1.
 const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredToken = ref<string | null>(null);
 
+// Track nearest tokens for each analogy (for the legend panel)
+const analogyResults = ref<{ from: string; to: string; apply: string; result: string; color: string }[]>([]);
+
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
@@ -87,6 +90,20 @@ function findNearestPointDistance(position: THREE.Vector3): number {
     }
   }
   return minDistance;
+}
+
+// Helper to find the nearest token to a position
+function findNearestToken(position: THREE.Vector3): string {
+  let minDistance = Infinity;
+  let nearestToken = '?';
+  for (let i = 0; i < pointStates.length; i++) {
+    const distance = position.distanceTo(pointStates[i].current);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestToken = props.points[i]?.token || '?';
+    }
+  }
+  return nearestToken;
 }
 
 // Create a Fresnel shader material for spheres (edges more visible than center)
@@ -491,9 +508,23 @@ function animate() {
     }
   });
 
-  // Update all analogies
-  analogyStates.forEach((state) => {
-    if (state.fromIndex === -1 || state.toIndex === -1 || state.applyIndex === -1) return;
+  // Update all analogies and track results
+  const newResults: typeof analogyResults.value = [];
+
+  analogyStates.forEach((state, index) => {
+    const analogy = analogies[index];
+    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
+
+    if (state.fromIndex === -1 || state.toIndex === -1 || state.applyIndex === -1) {
+      newResults.push({
+        from: analogy.from,
+        to: analogy.to,
+        apply: analogy.apply,
+        result: '?',
+        color: colorHex,
+      });
+      return;
+    }
 
     const fromPos = pointStates[state.fromIndex].current;
     const toPos = pointStates[state.toIndex].current;
@@ -530,7 +561,19 @@ function animate() {
       const nearestDistance = findNearestPointDistance(tipPos);
       state.sphere.scale.setScalar(nearestDistance);
     }
+
+    // Track the nearest token for the legend
+    const nearestToken = findNearestToken(tipPos);
+    newResults.push({
+      from: analogy.from,
+      to: analogy.to,
+      apply: analogy.apply,
+      result: nearestToken,
+      color: colorHex,
+    });
   });
+
+  analogyResults.value = newResults;
 
   renderer.render(scene, camera);
 }
@@ -581,6 +624,27 @@ watch([() => props.width, () => props.height], handleResize);
     <div v-if="hoveredToken" class="hover-label">
       {{ hoveredToken }}
     </div>
+
+    <!-- Analogy legend panel -->
+    <div class="analogy-panel">
+      <div
+        v-for="(result, index) in analogyResults"
+        :key="index"
+        class="analogy-column"
+      >
+        <div class="analogy-pair">
+          <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
+          <span class="arrow" :style="{ color: result.color }">↓</span>
+          <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
+        </div>
+        <div class="analogy-pair">
+          <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
+          <span class="arrow" :style="{ color: result.color }">↓</span>
+          <span class="token result" :style="{ color: result.color }">{{ result.result }}</span>
+        </div>
+      </div>
+    </div>
+
     <div class="instructions">
       Drag to rotate | Scroll to zoom | Right-drag to pan
     </div>
@@ -623,5 +687,49 @@ watch([() => props.width, () => props.height], handleResize);
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 11px;
+}
+
+.analogy-panel {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 16px 20px;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.analogy-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.analogy-pair {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.analogy-pair .token {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.analogy-pair .arrow {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.analogy-pair .token.result {
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
 }
 </style>
