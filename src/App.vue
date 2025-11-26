@@ -12,6 +12,11 @@ const dimensions = ref<1 | 2 | 3>(3);
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
 
+// Reference to the 3D canvas component to access analogy results
+const canvasRef = ref<InstanceType<typeof EmbeddingCanvas3D> | null>(null);
+
+const analogyResults = computed(() => canvasRef.value?.analogyResults ?? []);
+
 const points1D = computed(() => {
   const reduced = reduceTo1D(embeddings.value);
   // Convert 1D points to 3D on X axis (Y=0, Z=0)
@@ -71,6 +76,7 @@ onUnmounted(() => {
     <template v-else>
       <div class="canvas-fullscreen">
         <EmbeddingCanvas3D
+          ref="canvasRef"
           :points="currentPoints"
           :dimensions="dimensions"
           :width="viewportWidth"
@@ -78,19 +84,48 @@ onUnmounted(() => {
         />
       </div>
 
-      <div class="overlay-header">
-        <h1>Token Embedding Visualization</h1>
-        <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D</p>
+      <!-- Sidebar with title and analogy grid -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h1>Token Embedding Visualization</h1>
+          <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D</p>
+          <p class="token-count">{{ embeddings.length }} tokens</p>
+        </div>
+
+        <div class="analogy-section">
+          <h2>Word Analogies</h2>
+          <div class="analogy-grid">
+            <div
+              v-for="(result, index) in analogyResults"
+              :key="index"
+              class="analogy-column"
+            >
+              <div class="analogy-pair">
+                <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
+                <span class="arrow" :style="{ color: result.color }">↓</span>
+                <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
+              </div>
+              <div class="analogy-pair">
+                <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
+                <span class="arrow" :style="{ color: result.color }">↓</span>
+                <div class="results-list">
+                  <span
+                    v-for="(token, i) in result.results"
+                    :key="i"
+                    class="token result"
+                    :style="{ color: result.color, opacity: 1 - i * 0.15 }"
+                  >{{ token }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="overlay-controls">
         <button class="toggle-btn" @click="cycleDimensions">
           {{ dimensions }}D
         </button>
-      </div>
-
-      <div class="overlay-info">
-        {{ embeddings.length }} tokens
       </div>
     </template>
   </div>
@@ -125,28 +160,102 @@ onUnmounted(() => {
   color: #f44336;
 }
 
-.overlay-header {
+/* Sidebar */
+.sidebar {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 280px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
   z-index: 10;
+  overflow-y: auto;
 }
 
-.overlay-header h1 {
-  font-size: 1.4rem;
+.sidebar-header h1 {
+  font-size: 1.2rem;
   color: #4cc9f0;
-  margin: 0;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  margin: 0 0 8px 0;
 }
 
-.overlay-header .subtitle {
+.sidebar-header .subtitle {
   font-size: 0.85rem;
   color: #888;
-  margin: 4px 0 0 0;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  margin: 0;
 }
 
+.sidebar-header .token-count {
+  font-size: 0.75rem;
+  color: #666;
+  margin: 4px 0 0 0;
+}
+
+.analogy-section h2 {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.analogy-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: flex-start;
+}
+
+.analogy-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 70px;
+}
+
+.analogy-pair {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.analogy-pair .token {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.analogy-pair .arrow {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.analogy-pair .token.result {
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.analogy-pair .token.result:first-child {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Controls */
 .overlay-controls {
   position: absolute;
   top: 20px;
@@ -173,15 +282,5 @@ onUnmounted(() => {
 
 .toggle-btn:active {
   transform: scale(0.98);
-}
-
-.overlay-info {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  font-size: 0.8rem;
-  color: #666;
-  z-index: 10;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 }
 </style>

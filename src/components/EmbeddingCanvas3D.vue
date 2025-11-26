@@ -21,6 +21,9 @@ const hoveredToken = ref<string | null>(null);
 // Track nearest tokens for each analogy (for the legend panel)
 const analogyResults = ref<{ from: string; to: string; apply: string; results: string[]; color: string }[]>([]);
 
+// Expose analogy results to parent
+defineExpose({ analogyResults });
+
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
@@ -65,6 +68,7 @@ const analogies: Analogy[] = [
   { from: 'italy', to: 'pasta', apply: 'japan', color: 0x4466ff },
   { from: 'boy', to: 'girl', apply: 'man', color: 0xff4444 },
   { from: 'run', to: 'ran', apply: 'walk', color: 0xffcc00 },
+  { from: 'london', to: 'england', apply: 'beijing', color: 0x44cc44 },
 ];
 
 // Runtime state for each analogy
@@ -665,33 +669,6 @@ watch([() => props.width, () => props.height], handleResize);
       {{ hoveredToken }}
     </div>
 
-    <!-- Analogy legend panel -->
-    <div class="analogy-panel">
-      <div
-        v-for="(result, index) in analogyResults"
-        :key="index"
-        class="analogy-column"
-      >
-        <div class="analogy-pair">
-          <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
-          <span class="arrow" :style="{ color: result.color }">↓</span>
-          <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
-        </div>
-        <div class="analogy-pair">
-          <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
-          <span class="arrow" :style="{ color: result.color }">↓</span>
-          <div class="results-list">
-            <span
-              v-for="(token, i) in result.results"
-              :key="i"
-              class="token result"
-              :style="{ color: result.color, opacity: 1 - i * 0.15 }"
-            >{{ token }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="instructions">
       Drag to rotate | Scroll to zoom | Right-drag to pan
     </div>
@@ -736,61 +713,4 @@ watch([() => props.width, () => props.height], handleResize);
   font-size: 11px;
 }
 
-.analogy-panel {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 24px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 16px 20px;
-  border-radius: 8px;
-  pointer-events: none;
-}
-
-.analogy-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  min-width: 70px;
-}
-
-.analogy-pair {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.analogy-pair .token {
-  font-family: monospace;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.analogy-pair .arrow {
-  font-size: 16px;
-  line-height: 1;
-}
-
-.results-list {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.analogy-pair .token.result {
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.analogy-pair .token.result:first-child {
-  font-size: 14px;
-  font-weight: 700;
-}
 </style>
