@@ -216,11 +216,11 @@ onUnmounted(() => {
 }
 
 .analogy-section h2 {
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   color: #aaa;
-  margin: 0 0 16px 0;
+  margin: 0 0 24px 0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-align: center;
 }
 
@@ -235,8 +235,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  width: 70px;
+  gap: 20px;
+  width: 90px;
   flex-shrink: 0;
 }
 
@@ -244,21 +244,21 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .analogy-pair .token {
   font-family: monospace;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
-  max-width: 70px;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .analogy-pair .arrow {
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -266,18 +266,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .analogy-pair .token.result {
-  padding: 2px 6px;
+  padding: 3px 8px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .analogy-pair .token.result:first-child {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
 }
 
