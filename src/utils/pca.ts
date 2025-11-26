@@ -1,0 +1,82 @@
+import { PCA } from 'ml-pca';
+import type { TokenEmbedding, ReducedEmbedding2D, ReducedEmbedding3D } from '../types/embedding';
+
+export function reduceTo2D(embeddings: TokenEmbedding[]): ReducedEmbedding2D[] {
+  const matrix = embeddings.map(e => e.embedding);
+  const pca = new PCA(matrix);
+  const reduced = pca.predict(matrix, { nComponents: 2 });
+
+  return embeddings.map((embedding, index) => ({
+    token: embedding.token,
+    x: reduced.getRow(index)[0],
+    y: reduced.getRow(index)[1],
+  }));
+}
+
+export function reduceTo3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
+  const matrix = embeddings.map(e => e.embedding);
+  const pca = new PCA(matrix);
+  const reduced = pca.predict(matrix, { nComponents: 3 });
+
+  return embeddings.map((embedding, index) => ({
+    token: embedding.token,
+    x: reduced.getRow(index)[0],
+    y: reduced.getRow(index)[1],
+    z: reduced.getRow(index)[2],
+  }));
+}
+
+export function normalizeToCanvas(
+  points: ReducedEmbedding2D[],
+  width: number,
+  height: number,
+  padding: number = 50
+): ReducedEmbedding2D[] {
+  if (points.length === 0) return [];
+
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+
+  const availableWidth = width - 2 * padding;
+  const availableHeight = height - 2 * padding;
+
+  return points.map(point => ({
+    token: point.token,
+    x: padding + ((point.x - minX) / rangeX) * availableWidth,
+    y: padding + ((point.y - minY) / rangeY) * availableHeight,
+  }));
+}
+
+export function normalize3D(points: ReducedEmbedding3D[], scale: number = 10): ReducedEmbedding3D[] {
+  if (points.length === 0) return [];
+
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const zs = points.map(p => p.z);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const minZ = Math.min(...zs);
+  const maxZ = Math.max(...zs);
+
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const rangeZ = maxZ - minZ || 1;
+
+  return points.map(point => ({
+    token: point.token,
+    x: ((point.x - minX) / rangeX - 0.5) * scale,
+    y: ((point.y - minY) / rangeY - 0.5) * scale,
+    z: ((point.z - minZ) / rangeZ - 0.5) * scale,
+  }));
+}
