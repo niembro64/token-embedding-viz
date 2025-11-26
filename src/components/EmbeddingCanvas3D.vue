@@ -71,6 +71,22 @@ let manIndex = -1;
 let japanQuestionMark: THREE.Sprite | null = null;
 let manQuestionMark: THREE.Sprite | null = null;
 
+// Spheres showing distance to nearest point
+let japanSphere: THREE.Mesh | null = null;
+let manSphere: THREE.Mesh | null = null;
+
+// Helper to find distance to nearest point
+function findNearestPointDistance(position: THREE.Vector3): number {
+  let minDistance = Infinity;
+  for (const state of pointStates) {
+    const distance = position.distanceTo(state.current);
+    if (distance < minDistance) {
+      minDistance = distance;
+    }
+  }
+  return minDistance;
+}
+
 // Spring parameters (underdamped)
 const springK = 120; // Spring stiffness
 const damping = 12; // Damping coefficient (underdamped < 2*sqrt(k))
@@ -339,6 +355,32 @@ function initializePoints() {
     manQuestionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
     scene.add(manQuestionMark);
   }
+
+  // Create sphere for japan arrow tip (blue, transparent)
+  if (japanArrow) {
+    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+    const sphereMaterial = new THREE.MeshBasicMaterial({
+      color: 0x4466ff,
+      transparent: true,
+      opacity: 0.15,
+      depthWrite: false,
+    });
+    japanSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    scene.add(japanSphere);
+  }
+
+  // Create sphere for man arrow tip (red, transparent)
+  if (manArrow) {
+    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+    const sphereMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff4444,
+      transparent: true,
+      opacity: 0.15,
+      depthWrite: false,
+    });
+    manSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    scene.add(manSphere);
+  }
 }
 
 function updateTargets() {
@@ -488,11 +530,18 @@ function animate() {
       japanArrow.setLength(length, 0.3, 0.15);
 
       // Position and scale question mark at arrow tip
+      const tipPos = japanPos.clone().add(difference.clone().multiplyScalar(length));
       if (japanQuestionMark) {
-        const tipPos = japanPos.clone().add(difference.clone().multiplyScalar(length));
         japanQuestionMark.position.copy(tipPos);
         const currentScale = pointStates[japanIndex].currentScale;
         japanQuestionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
+      }
+
+      // Position and scale sphere at arrow tip
+      if (japanSphere) {
+        japanSphere.position.copy(tipPos);
+        const nearestDistance = findNearestPointDistance(tipPos);
+        japanSphere.scale.setScalar(nearestDistance);
       }
     }
   }
@@ -517,11 +566,18 @@ function animate() {
       manArrow.setLength(length, 0.3, 0.15);
 
       // Position and scale question mark at arrow tip
+      const tipPos = manPos.clone().add(difference.clone().multiplyScalar(length));
       if (manQuestionMark) {
-        const tipPos = manPos.clone().add(difference.clone().multiplyScalar(length));
         manQuestionMark.position.copy(tipPos);
         const currentScale = pointStates[manIndex].currentScale;
         manQuestionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
+      }
+
+      // Position and scale sphere at arrow tip
+      if (manSphere) {
+        manSphere.position.copy(tipPos);
+        const nearestDistance = findNearestPointDistance(tipPos);
+        manSphere.scale.setScalar(nearestDistance);
       }
     }
   }
