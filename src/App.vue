@@ -247,7 +247,8 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  min-width: 70px;
+  width: 70px;
+  flex-shrink: 0;
 }
 
 .analogy-pair {
@@ -261,6 +262,10 @@ onUnmounted(() => {
   font-family: monospace;
   font-size: 13px;
   font-weight: 600;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .analogy-pair .arrow {
