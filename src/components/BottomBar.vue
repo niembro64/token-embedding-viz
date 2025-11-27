@@ -18,7 +18,7 @@ const emit = defineEmits<{
 function getProjectionLabel(mode: ProjectionMode): string {
   switch (mode) {
     case 'pca_reduction': return 'PCA';
-    case 'embedding_reduction': return 'Raw';
+    case 'embedding_reduction': return 'Naive';
     case 'embedding_full': return 'Full 50D';
   }
 }

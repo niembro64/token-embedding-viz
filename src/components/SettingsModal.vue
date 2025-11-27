@@ -48,7 +48,7 @@ function selectMode(mode: ProjectionMode) {
             :class="{ active: projectionMode === 'embedding_reduction' }"
             @click="selectMode('embedding_reduction')"
           >
-            <span class="option-title">Embedding Reduction</span>
+            <span class="option-title">Naive Reduction</span>
             <span class="option-desc">Use first 3 dimensions of the original embedding directly (50D → 3D)</span>
           </button>
 

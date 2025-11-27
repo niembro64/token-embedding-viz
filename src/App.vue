@@ -5,7 +5,7 @@ import BottomBar from './components/BottomBar.vue';
 import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
 import SettingsModal, { type ProjectionMode } from './components/SettingsModal.vue';
-import { reduceToPCA3D, reduceToRaw3D } from './utils/pca';
+import { reduceToPCA3D, reduceToNaive3D } from './utils/pca';
 import type { TokenEmbedding } from './types/types';
 
 const embeddings = ref<TokenEmbedding[]>([]);
@@ -41,7 +41,7 @@ const points3D = computed(() => {
     return reduceToPCA3D(embeddings.value);
   }
   if (projectionMode.value === 'embedding_reduction') {
-    return reduceToRaw3D(embeddings.value);
+    return reduceToNaive3D(embeddings.value);
   }
   // For embedding_full, return empty array (no 3D visualization)
   return [];

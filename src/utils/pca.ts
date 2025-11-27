@@ -17,7 +17,7 @@ export function reduceToPCA3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[
   });
 }
 
-export function reduceToRaw3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
+export function reduceToNaive3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
   return embeddings.map(embedding => ({
     token: embedding.token,
     x: embedding.embedding[0] ?? 0,
