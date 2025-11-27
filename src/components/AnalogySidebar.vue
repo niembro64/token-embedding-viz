@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getResultOpacity } from '../config/analogies';
+
 export interface AnalogyResult {
   from: string;
   to: string;
@@ -49,7 +51,7 @@ const emit = defineEmits<{
                   v-for="(token, i) in result.results"
                   :key="i"
                   class="token result"
-                  :style="{ color: result.color, opacity: 1 - i * 0.15 }"
+                  :style="{ color: result.color, opacity: getResultOpacity(i) }"
                 >{{ token }}</span>
               </div>
             </div>

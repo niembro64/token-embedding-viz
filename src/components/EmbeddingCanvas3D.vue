@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReducedEmbedding3D, TokenEmbedding } from '../types/types';
 import type { ProjectionMode, SphereCount } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
+import { analogies, resultCount, getResultOpacity, colorToHex } from '../config/analogies';
 
 const props = defineProps<{
   points: ReducedEmbedding3D[];
@@ -60,22 +61,6 @@ let pointStates: PointState[] = [];
 let pointsMesh: THREE.Points | null = null;
 let sprites: THREE.Sprite[] = [];
 const baseScale = { x: 4, y: 1 }; // Base sprite scale
-
-// Analogy definition: "from" is to "to" as "apply" is to "?"
-interface Analogy {
-  from: string;
-  to: string;
-  apply: string;
-  color: number;
-}
-
-// Configure analogies here (colors balanced for equal perceived brightness)
-const analogies: Analogy[] = [
-  { from: 'italy', to: 'pasta', apply: 'japan', color: 0x60a5fa },    // blue
-  { from: 'boy', to: 'girl', apply: 'man', color: 0xf87171 },         // red
-  { from: 'run', to: 'ran', apply: 'walk', color: 0xfbbf24 },         // yellow
-  { from: 'london', to: 'england', apply: 'beijing', color: 0x4ade80 }, // green
-];
 
 // Runtime state for each analogy
 interface AnalogyState {
@@ -144,8 +129,6 @@ function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
   const results: typeof analogyResults.value = [];
 
   for (const analogy of analogies) {
-    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
-
     const fromEmb = props.originalEmbeddings.find(e => e.token === analogy.from);
     const toEmb = props.originalEmbeddings.find(e => e.token === analogy.to);
     const applyEmb = props.originalEmbeddings.find(e => e.token === analogy.apply);
@@ -156,7 +139,7 @@ function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
         to: analogy.to,
         apply: analogy.apply,
         results: ['?'],
-        color: colorHex,
+        color: analogy.color,
       });
       continue;
     }
@@ -169,14 +152,14 @@ function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
     }
 
     // Find nearest tokens to the result embedding
-    const nearestTokens = findNearestTokensFullEmbedding(resultEmbedding, 5);
+    const nearestTokens = findNearestTokensFullEmbedding(resultEmbedding, resultCount);
 
     results.push({
       from: analogy.from,
       to: analogy.to,
       apply: analogy.apply,
       results: nearestTokens,
-      color: colorHex,
+      color: analogy.color,
     });
   }
 
@@ -244,12 +227,12 @@ function updateThickArrow(
 }
 
 // Create a Fresnel shader material for spheres (edges more visible than center)
-function createFresnelSphereMaterial(color: number): THREE.ShaderMaterial {
+function createFresnelSphereMaterial(color: number, opacity: number = 0.4): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       color: { value: new THREE.Color(color) },
       fresnelPower: { value: 2.0 },
-      opacity: { value: 0.4 },
+      opacity: { value: opacity },
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -543,20 +526,24 @@ function initializePoints() {
     const length = difference.length();
     difference.normalize();
 
+    const colorNum = colorToHex(analogy.color);
+
     // Create arrow from "from" to "to"
-    state.fromToArrow = createThickArrow(difference, fromPos, length, analogy.color);
+    state.fromToArrow = createThickArrow(difference, fromPos, length, colorNum);
     state.fromToArrow.visible = props.showArrows;
     scene.add(state.fromToArrow);
 
     // Create arrow from "apply" using same difference
-    state.applyArrow = createThickArrow(difference, applyPos, length, analogy.color);
+    state.applyArrow = createThickArrow(difference, applyPos, length, colorNum);
     state.applyArrow.visible = props.showArrows;
     scene.add(state.applyArrow);
 
-    // Create 5 spheres at apply arrow tip with Fresnel effect (we'll control visibility)
-    for (let i = 0; i < 5; i++) {
+    // Create spheres at apply arrow tip with Fresnel effect (decreasing opacity)
+    for (let i = 0; i < resultCount; i++) {
       const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-      const sphereMaterial = createFresnelSphereMaterial(analogy.color);
+      // Opacity decreases for each subsequent sphere using shared config
+      const sphereOpacity = 0.4 * getResultOpacity(i);
+      const sphereMaterial = createFresnelSphereMaterial(colorNum, sphereOpacity);
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
       sphere.renderOrder = 0;
       // Initially hide based on sphereCount setting
@@ -566,8 +553,7 @@ function initializePoints() {
     }
 
     // Create question mark at apply arrow tip (render on top of sphere)
-    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
-    state.questionMark = createTextSprite('?', colorHex, true);
+    state.questionMark = createTextSprite('?', analogy.color, true);
     state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
     state.questionMark.renderOrder = 1;
     (state.questionMark.material as THREE.SpriteMaterial).depthTest = false;
@@ -719,7 +705,6 @@ function animate() {
   analogyStates.forEach((state, index) => {
     const analogy = analogies[index];
     if (!analogy) return;
-    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
 
     if (state.fromIndex === -1 || state.toIndex === -1 || state.applyIndex === -1) {
       newResults.push({
@@ -727,7 +712,7 @@ function animate() {
         to: analogy.to,
         apply: analogy.apply,
         results: ['?'],
-        color: colorHex,
+        color: analogy.color,
       });
       return;
     }
@@ -763,7 +748,7 @@ function animate() {
     }
 
     // Get nearest tokens with distances for both spheres and legend
-    const nearestWithDistances = findNearestTokensWithDistances(tipPos, 5);
+    const nearestWithDistances = findNearestTokensWithDistances(tipPos, resultCount);
 
     // Position and scale all spheres at apply arrow tip
     state.spheres.forEach((sphere, i) => {
@@ -779,7 +764,7 @@ function animate() {
       to: analogy.to,
       apply: analogy.apply,
       results: nearestTokens,
-      color: colorHex,
+      color: analogy.color,
     });
   });
 

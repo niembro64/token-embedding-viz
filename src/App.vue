@@ -14,7 +14,7 @@ const error = ref<string | null>(null);
 const dimensions = ref<1 | 2 | 3>(3);
 const projectionMode = ref<ProjectionMode>('pca_reduction');
 const showArrows = ref(true);
-const sphereCount = ref<SphereCount>(1);
+const sphereCount = ref<SphereCount>(5);
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
