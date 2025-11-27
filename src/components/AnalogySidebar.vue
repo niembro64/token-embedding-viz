@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getResultOpacity } from '../config/analogies';
+import { getResultOpacity, analogyColorOpacity, hexToRgba } from '../config/config';
 
 export interface AnalogyResult {
   from: string;
@@ -51,7 +51,7 @@ const emit = defineEmits<{
                   v-for="(token, i) in result.results"
                   :key="i"
                   class="token result"
-                  :style="{ backgroundColor: result.color, opacity: getResultOpacity(i) }"
+                  :style="{ backgroundColor: hexToRgba(result.color, analogyColorOpacity * getResultOpacity(i)) }"
                 >{{ token }}</span>
               </div>
             </div>
@@ -149,7 +149,7 @@ h2 {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 14px;
-  color: #0d1117;
+  color: #fff;
 }
 
 .analogy-pair .token.result:first-child {

@@ -5,7 +5,23 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReducedEmbedding3D, TokenEmbedding } from '../types/types';
 import type { ProjectionMode, SphereCount } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
-import { analogies, resultCount, getResultOpacity, colorToHex } from '../config/analogies';
+import {
+  colors,
+  analogies,
+  resultCount,
+  getResultOpacity,
+  colorToHex,
+  analogyColorOpacity,
+  animation,
+  scales,
+  arrow,
+  sphere,
+  camera as cameraConfig,
+  grid,
+  axis,
+  textSprite,
+  misc,
+} from '../config/config';
 
 const props = defineProps<{
   points: ReducedEmbedding3D[];
@@ -18,8 +34,8 @@ const props = defineProps<{
   sphereCount: SphereCount;
 }>();
 
-// Scale multipliers for each dimension
-const scaleByDimension: Record<number, number> = { 1: 0.5, 2: 0.75, 3: 1.0 };
+// Scale multipliers for each dimension (from config)
+const scaleByDimension = scales.byDimension;
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredToken = ref<string | null>(null);
@@ -44,9 +60,6 @@ let animationId: number;
 // Auto-rotation state
 let isInteracting = false;
 let currentSpeed = 0;
-const maxSpeed = 2;
-const accelerationRate = 0.01;
-const decelerationRate = 0.05;
 
 // Spring animation state
 interface PointState {
@@ -60,7 +73,7 @@ interface PointState {
 let pointStates: PointState[] = [];
 let pointsMesh: THREE.Points | null = null;
 let sprites: THREE.Sprite[] = [];
-const baseScale = { x: 4, y: 1 }; // Base sprite scale
+const baseScale = scales.baseSprite;
 
 // Runtime state for each analogy
 interface AnalogyState {
@@ -172,9 +185,9 @@ function createThickArrow(
   origin: THREE.Vector3,
   length: number,
   color: number,
-  stemRadius: number = 0.04,
-  headLength: number = 0.3,
-  headRadius: number = 0.12
+  stemRadius: number = arrow.stemRadius,
+  headLength: number = arrow.headLength,
+  headRadius: number = arrow.headRadius
 ): THREE.Group {
   const group = new THREE.Group();
 
@@ -203,35 +216,35 @@ function createThickArrow(
 
 // Update a thick arrow's direction and length
 function updateThickArrow(
-  arrow: THREE.Group,
+  arrowGroup: THREE.Group,
   direction: THREE.Vector3,
   origin: THREE.Vector3,
   length: number,
-  headLength: number = 0.3
+  headLength: number = arrow.headLength
 ) {
   const stemLength = Math.max(0.01, length - headLength);
 
   // Update stem
-  const stem = arrow.children[0] as THREE.Mesh;
+  const stem = arrowGroup.children[0] as THREE.Mesh;
   stem.geometry.dispose();
-  stem.geometry = new THREE.CylinderGeometry(0.04, 0.04, stemLength, 8);
+  stem.geometry = new THREE.CylinderGeometry(arrow.stemRadius, arrow.stemRadius, stemLength, 8);
   stem.position.y = stemLength / 2;
 
   // Update head position
-  const head = arrow.children[1] as THREE.Mesh;
+  const head = arrowGroup.children[1] as THREE.Mesh;
   head.position.y = stemLength + headLength / 2;
 
   // Update orientation and position
-  arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
-  arrow.position.copy(origin);
+  arrowGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  arrowGroup.position.copy(origin);
 }
 
 // Create a Fresnel shader material for spheres (edges more visible than center)
-function createFresnelSphereMaterial(color: number, opacity: number = 0.4): THREE.ShaderMaterial {
+function createFresnelSphereMaterial(color: number, opacity: number = sphere.baseOpacity): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       color: { value: new THREE.Color(color) },
-      fresnelPower: { value: 2.0 },
+      fresnelPower: { value: sphere.fresnelPower },
       opacity: { value: opacity },
     },
     vertexShader: `
@@ -265,21 +278,19 @@ function createFresnelSphereMaterial(color: number, opacity: number = 0.4): THRE
   });
 }
 
-// Spring parameters (underdamped)
-const springK = 120; // Spring stiffness
-const damping = 12; // Damping coefficient (underdamped < 2*sqrt(k))
-const dt = 1 / 60; // Time step
+// Spring parameters from config
+const { springK, damping, dt } = animation;
 
-function createTextSprite(text: string, color: string = '#e0e0e0', centered: boolean = false, fontSize: number = 64): THREE.Sprite {
+function createTextSprite(text: string, color: string = colors.labelText, centered: boolean = false, fontSize: number = textSprite.fontSize): THREE.Sprite {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d')!;
-  canvas.width = 512;
-  canvas.height = 128;
+  canvas.width = textSprite.canvasWidth;
+  canvas.height = textSprite.canvasHeight;
 
   // Clear to fully transparent
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  context.font = `bold ${fontSize}px monospace`;
+  context.font = `bold ${fontSize}px ${textSprite.fontFamily}`;
   context.fillStyle = color;
   context.textAlign = centered ? 'center' : 'left';
   context.fillText(text, centered ? canvas.width / 2 : 8, 80);
@@ -325,22 +336,20 @@ function createNoVisualMessage() {
 function init() {
   if (!containerRef.value) return;
 
-  const bg_color: number = 0x11111118;
-  // const bg_color: number = 0x1a1a2e;
-
   // Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(bg_color);
+  scene.background = new THREE.Color(colors.background);
+
   // Camera - start closer on desktop
   camera = new THREE.PerspectiveCamera(
-    60,
+    cameraConfig.fov,
     props.width / props.height,
-    0.1,
-    1000
+    cameraConfig.near,
+    cameraConfig.far
   );
-  const isMobile = props.width < 768;
-  const distance = isMobile ? 15 : 8;
-  camera.position.set(distance, distance * 0.6, distance);
+  const isMobile = props.width < misc.mobileBreakpoint;
+  const distance = isMobile ? cameraConfig.distanceMobile : cameraConfig.distanceDesktop;
+  camera.position.set(distance, distance * cameraConfig.heightRatio, distance);
 
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -352,13 +361,13 @@ function init() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 0, 0);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
+  controls.dampingFactor = animation.dampingFactor;
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0;
 
   // Raycaster for hover detection
   raycaster = new THREE.Raycaster();
-  raycaster.params.Points!.threshold = 0.3;
+  raycaster.params.Points!.threshold = misc.raycasterThreshold;
   mouse = new THREE.Vector2();
 
   // Groups
@@ -368,33 +377,31 @@ function init() {
   scene.add(labelsGroup);
 
   // Add custom axes matching grid color
-  const axisColor = 0x444444;
-  const axisMaterial = new THREE.LineBasicMaterial({ color: axisColor });
-  const axisLength = 6;
+  const axisMaterial = new THREE.LineBasicMaterial({ color: colors.axis });
 
   // X axis
   const xGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(axisLength, 0, 0),
+    new THREE.Vector3(axis.length, 0, 0),
   ]);
   scene.add(new THREE.Line(xGeom, axisMaterial));
 
   // Y axis
   const yGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0, axisLength, 0),
+    new THREE.Vector3(0, axis.length, 0),
   ]);
   scene.add(new THREE.Line(yGeom, axisMaterial));
 
   // Z axis
   const zGeom = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0, 0, axisLength),
+    new THREE.Vector3(0, 0, axis.length),
   ]);
   scene.add(new THREE.Line(zGeom, axisMaterial));
 
   // Add grid
-  const gridHelper = new THREE.GridHelper(12, 12, 0x444444, 0x333333);
+  const gridHelper = new THREE.GridHelper(grid.size, grid.divisions, colors.gridPrimary, colors.gridSecondary);
   scene.add(gridHelper);
 
   // Create "No Visual Possible" message (hidden by default)
@@ -446,7 +453,7 @@ function initializePoints() {
   if (!pointsGroup || !labelsGroup) return;
   if (props.points.length === 0) return;
 
-  const normalizedPoints = normalize3D(props.points, 10);
+  const normalizedPoints = normalize3D(props.points, scales.pointCloud);
   const initialScale = scaleByDimension[props.dimensions] ?? 1.0;
 
   // Initialize point states
@@ -462,17 +469,17 @@ function initializePoints() {
   // Create points geometry
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(normalizedPoints.length * 3);
-  const colors = new Float32Array(normalizedPoints.length * 3);
+  const vertexColors = new Float32Array(normalizedPoints.length * 3);
 
-  const color = new THREE.Color(0xc084fc); // purple
+  const color = new THREE.Color(colors.point);
 
   normalizedPoints.forEach((point, i) => {
     positions[i * 3] = point.x;
     positions[i * 3 + 1] = point.y;
     positions[i * 3 + 2] = point.z;
-    colors[i * 3] = color.r;
-    colors[i * 3 + 1] = color.g;
-    colors[i * 3 + 2] = color.b;
+    vertexColors[i * 3] = color.r;
+    vertexColors[i * 3 + 1] = color.g;
+    vertexColors[i * 3 + 2] = color.b;
 
     // Create label sprite (position will be set in animate)
     const sprite = createTextSprite(point.token);
@@ -484,10 +491,10 @@ function initializePoints() {
   });
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(vertexColors, 3));
 
   const material = new THREE.PointsMaterial({
-    size: 0.2,
+    size: misc.pointSize,
     vertexColors: true,
     sizeAttenuation: true,
   });
@@ -542,16 +549,16 @@ function initializePoints() {
 
     // Create spheres at apply arrow tip with Fresnel effect (decreasing opacity)
     for (let i = 0; i < resultCount; i++) {
-      const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+      const sphereGeometry = new THREE.SphereGeometry(1, sphere.segments, sphere.segments);
       // Opacity decreases for each subsequent sphere using shared config
-      const sphereOpacity = 0.4 * getResultOpacity(i);
+      const sphereOpacity = sphere.baseOpacity * analogyColorOpacity * getResultOpacity(i);
       const sphereMaterial = createFresnelSphereMaterial(colorNum, sphereOpacity);
-      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      sphere.renderOrder = 0;
+      const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      sphereMesh.renderOrder = 0;
       // Initially hide based on sphereCount setting
-      sphere.visible = props.sphereCount > i;
-      scene.add(sphere);
-      state.spheres.push(sphere);
+      sphereMesh.visible = props.sphereCount > i;
+      scene.add(sphereMesh);
+      state.spheres.push(sphereMesh);
     }
 
     // Create question mark at apply arrow tip (render on top of sphere)
@@ -569,7 +576,7 @@ function initializePoints() {
 function updateTargets() {
   if (props.points.length === 0) return;
 
-  const normalizedPoints = normalize3D(props.points, 10);
+  const normalizedPoints = normalize3D(props.points, scales.pointCloud);
   const targetScale = scaleByDimension[props.dimensions] ?? 1.0;
 
   // Update targets for existing points
@@ -667,9 +674,9 @@ function animate() {
 
   // Handle auto-rotation speed
   if (isInteracting) {
-    currentSpeed = Math.max(0, currentSpeed - decelerationRate);
+    currentSpeed = Math.max(0, currentSpeed - animation.decelerationRate);
   } else {
-    currentSpeed = Math.min(maxSpeed, currentSpeed + accelerationRate);
+    currentSpeed = Math.min(animation.maxSpeed, currentSpeed + animation.accelerationRate);
   }
 
   controls.autoRotateSpeed = currentSpeed;
