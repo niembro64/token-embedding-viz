@@ -180,6 +180,7 @@ function getProjectionLabel(mode: ProjectionMode): string {
 
 .icon-btn.active {
   background: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
 }
 
 .icon-btn:active {

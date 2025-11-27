@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReducedEmbedding3D, TokenEmbedding } from '../types/types';
-import type { ProjectionMode } from './SettingsModal.vue';
+import type { ProjectionMode, SphereCount } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
 
 const props = defineProps<{
@@ -13,6 +13,8 @@ const props = defineProps<{
   height: number;
   projectionMode: ProjectionMode;
   originalEmbeddings: TokenEmbedding[];
+  showArrows: boolean;
+  sphereCount: SphereCount;
 }>();
 
 // Scale multipliers for each dimension
@@ -83,7 +85,7 @@ interface AnalogyState {
   fromToArrow: THREE.Group | null;
   applyArrow: THREE.Group | null;
   questionMark: THREE.Sprite | null;
-  sphere: THREE.Mesh | null;
+  spheres: THREE.Mesh[]; // Array of spheres (up to 5)
 }
 
 let analogyStates: AnalogyState[] = [];
@@ -100,8 +102,8 @@ function findNearestPointDistance(position: THREE.Vector3): number {
   return minDistance;
 }
 
-// Helper to find the nearest tokens to a position (returns top N)
-function findNearestTokens(position: THREE.Vector3, count: number = 5): string[] {
+// Helper to find the nearest tokens and their distances to a position (returns top N)
+function findNearestTokensWithDistances(position: THREE.Vector3, count: number = 5): { token: string; distance: number }[] {
   const distances: { token: string; distance: number }[] = [];
   for (let i = 0; i < pointStates.length; i++) {
     const state = pointStates[i];
@@ -111,7 +113,12 @@ function findNearestTokens(position: THREE.Vector3, count: number = 5): string[]
     distances.push({ token, distance });
   }
   distances.sort((a, b) => a.distance - b.distance);
-  return distances.slice(0, count).map((d) => d.token);
+  return distances.slice(0, count);
+}
+
+// Helper to find the nearest tokens to a position (returns top N)
+function findNearestTokens(position: THREE.Vector3, count: number = 5): string[] {
+  return findNearestTokensWithDistances(position, count).map((d) => d.token);
 }
 
 // Helper to find nearest tokens in full 50D embedding space
@@ -435,10 +442,13 @@ function updateVisibility() {
 
   // Toggle visibility of analogy arrows/spheres
   for (const state of analogyStates) {
-    if (state.fromToArrow) state.fromToArrow.visible = !isFullMode;
-    if (state.applyArrow) state.applyArrow.visible = !isFullMode;
-    if (state.questionMark) state.questionMark.visible = !isFullMode;
-    if (state.sphere) state.sphere.visible = !isFullMode;
+    if (state.fromToArrow) state.fromToArrow.visible = !isFullMode && props.showArrows;
+    if (state.applyArrow) state.applyArrow.visible = !isFullMode && props.showArrows;
+    if (state.questionMark) state.questionMark.visible = !isFullMode && props.showArrows;
+    // Update sphere visibility based on sphereCount
+    state.spheres.forEach((sphere, i) => {
+      sphere.visible = !isFullMode && props.sphereCount > i;
+    });
   }
 
   // Toggle "No Visual" message
@@ -513,7 +523,7 @@ function initializePoints() {
       fromToArrow: null,
       applyArrow: null,
       questionMark: null,
-      sphere: null,
+      spheres: [],
     };
 
     // Skip if any token not found
@@ -535,18 +545,25 @@ function initializePoints() {
 
     // Create arrow from "from" to "to"
     state.fromToArrow = createThickArrow(difference, fromPos, length, analogy.color);
+    state.fromToArrow.visible = props.showArrows;
     scene.add(state.fromToArrow);
 
     // Create arrow from "apply" using same difference
     state.applyArrow = createThickArrow(difference, applyPos, length, analogy.color);
+    state.applyArrow.visible = props.showArrows;
     scene.add(state.applyArrow);
 
-    // Create sphere at apply arrow tip with Fresnel effect (render first)
-    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const sphereMaterial = createFresnelSphereMaterial(analogy.color);
-    state.sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    state.sphere.renderOrder = 0;
-    scene.add(state.sphere);
+    // Create 5 spheres at apply arrow tip with Fresnel effect (we'll control visibility)
+    for (let i = 0; i < 5; i++) {
+      const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+      const sphereMaterial = createFresnelSphereMaterial(analogy.color);
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      sphere.renderOrder = 0;
+      // Initially hide based on sphereCount setting
+      sphere.visible = props.sphereCount > i;
+      scene.add(sphere);
+      state.spheres.push(sphere);
+    }
 
     // Create question mark at apply arrow tip (render on top of sphere)
     const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
@@ -554,6 +571,7 @@ function initializePoints() {
     state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
     state.questionMark.renderOrder = 1;
     (state.questionMark.material as THREE.SpriteMaterial).depthTest = false;
+    state.questionMark.visible = props.showArrows;
     scene.add(state.questionMark);
 
     return state;
@@ -744,15 +762,18 @@ function animate() {
       state.questionMark.scale.set(baseScale.x * 2 * currentScale, baseScale.y * 2 * currentScale, 1);
     }
 
-    // Position and scale sphere at apply arrow tip
-    if (state.sphere) {
-      state.sphere.position.copy(tipPos);
-      const nearestDistance = findNearestPointDistance(tipPos);
-      state.sphere.scale.setScalar(nearestDistance);
-    }
+    // Get nearest tokens with distances for both spheres and legend
+    const nearestWithDistances = findNearestTokensWithDistances(tipPos, 5);
+
+    // Position and scale all spheres at apply arrow tip
+    state.spheres.forEach((sphere, i) => {
+      sphere.position.copy(tipPos);
+      const dist = nearestWithDistances[i]?.distance ?? 0;
+      sphere.scale.setScalar(dist);
+    });
 
     // Track the nearest tokens for the legend
-    const nearestTokens = findNearestTokens(tipPos, 5);
+    const nearestTokens = nearestWithDistances.map(d => d.token);
     newResults.push({
       from: analogy.from,
       to: analogy.to,
@@ -831,6 +852,14 @@ watch(
 );
 
 watch([() => props.width, () => props.height], handleResize);
+
+// Watch for showArrows and sphereCount changes
+watch(
+  [() => props.showArrows, () => props.sphereCount],
+  () => {
+    updateVisibility();
+  }
+);
 </script>
 
 <template>

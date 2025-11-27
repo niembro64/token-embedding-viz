@@ -4,7 +4,7 @@ import EmbeddingCanvas3D from './components/EmbeddingCanvas3D.vue';
 import BottomBar from './components/BottomBar.vue';
 import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
-import SettingsModal, { type ProjectionMode } from './components/SettingsModal.vue';
+import SettingsModal, { type ProjectionMode, type SphereCount } from './components/SettingsModal.vue';
 import { reduceToPCA3D, reduceToNaive3D } from './utils/pca';
 import type { TokenEmbedding } from './types/types';
 
@@ -13,6 +13,8 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const dimensions = ref<1 | 2 | 3>(3);
 const projectionMode = ref<ProjectionMode>('pca_reduction');
+const showArrows = ref(true);
+const sphereCount = ref<SphereCount>(1);
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
@@ -108,6 +110,8 @@ onUnmounted(() => {
           :height="viewportHeight"
           :projection-mode="projectionMode"
           :original-embeddings="embeddings"
+          :show-arrows="showArrows"
+          :sphere-count="sphereCount"
         />
       </div>
 
@@ -122,8 +126,12 @@ onUnmounted(() => {
         :visible="settingsVisible"
         :is-mobile="isMobile"
         :projection-mode="projectionMode"
+        :show-arrows="showArrows"
+        :sphere-count="sphereCount"
         @close="toggleSettings"
         @update:projection-mode="projectionMode = $event"
+        @update:show-arrows="showArrows = $event"
+        @update:sphere-count="sphereCount = $event"
       />
 
       <BottomBar

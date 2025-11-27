@@ -27,8 +27,9 @@ const emit = defineEmits<{
     <div class="sidebar-content">
       <button class="close-btn" @click="emit('close')">×</button>
 
+      <h2>Analogies</h2>
+
       <div class="analogy-section">
-        <h2>Word Analogies</h2>
         <div class="analogy-grid">
           <div
             v-for="(result, index) in analogyResults"
@@ -79,12 +80,7 @@ const emit = defineEmits<{
 
 .sidebar-content {
   padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100%;
-  box-sizing: border-box;
+  position: relative;
 }
 
 .analogy-section {
@@ -93,13 +89,12 @@ const emit = defineEmits<{
   align-items: center;
 }
 
-.analogy-section h2 {
-  font-size: 1.2rem;
-  color: #aaa;
+h2 {
   margin: 0 0 24px 0;
+  font-size: 1.2rem;
+  color: #c084fc;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  text-align: center;
 }
 
 .analogy-grid {

@@ -1,30 +1,45 @@
 <script setup lang="ts">
 export type ProjectionMode = 'pca_reduction' | 'embedding_reduction' | 'embedding_full';
+export type SphereCount = 0 | 1 | 5;
 
-defineProps<{
+const props = defineProps<{
   visible: boolean;
   isMobile: boolean;
   projectionMode: ProjectionMode;
+  showArrows: boolean;
+  sphereCount: SphereCount;
 }>();
 
 const emit = defineEmits<{
   close: [];
   'update:projectionMode': [mode: ProjectionMode];
+  'update:showArrows': [show: boolean];
+  'update:sphereCount': [count: SphereCount];
 }>();
 
 function selectMode(mode: ProjectionMode) {
   emit('update:projectionMode', mode);
 }
+
+function toggleArrows() {
+  emit('update:showArrows', !props.showArrows);
+}
+
+function cycleSphereCount() {
+  const current = props.sphereCount;
+  if (current === 0) emit('update:sphereCount', 1);
+  else if (current === 1) emit('update:sphereCount', 5);
+  else emit('update:sphereCount', 0);
+}
 </script>
 
 <template>
   <div
-    v-if="visible"
-    class="modal-overlay"
-    :class="{ 'modal-mobile': isMobile }"
+    class="settings-panel"
+    :class="{ 'panel-visible': visible, 'panel-mobile': isMobile }"
     @click.self="emit('close')"
   >
-    <div class="modal-content">
+    <div class="panel-content">
       <button class="close-btn" @click="emit('close')">×</button>
 
       <h2>Settings</h2>
@@ -62,41 +77,57 @@ function selectMode(mode: ProjectionMode) {
           </button>
         </div>
       </div>
+
+      <div class="setting-group">
+        <h3>Analogy Visualization</h3>
+        <p class="setting-description">Configure how analogies are displayed</p>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Show Arrows & Question Marks</span>
+          <button
+            class="toggle-switch"
+            :class="{ active: showArrows }"
+            @click="toggleArrows"
+          >
+            {{ showArrows ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Distance Spheres</span>
+          <button
+            class="cycle-btn"
+            @click="cycleSphereCount"
+          >
+            {{ sphereCount === 0 ? 'None' : sphereCount === 1 ? '1 Sphere' : '5 Spheres' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
+.settings-panel {
+  position: absolute;
   top: 0;
-  left: 0;
   right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
+  height: calc(100% - 70px);
+  width: 320px;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 20;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
 }
 
-.modal-content {
-  background: #1a1a2e;
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 400px;
-  width: 90%;
+.settings-panel.panel-visible {
+  transform: translateX(0);
+}
+
+.panel-content {
+  padding: 20px;
   position: relative;
-  border: 1px solid #333;
-}
-
-.modal-mobile .modal-content {
-  max-width: none;
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 .close-btn {
@@ -123,8 +154,10 @@ function selectMode(mode: ProjectionMode) {
 
 h2 {
   margin: 0 0 24px 0;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   color: #c084fc;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .setting-group {
@@ -133,33 +166,33 @@ h2 {
 
 .setting-group h3 {
   margin: 0 0 8px 0;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #fff;
 }
 
 .setting-description {
   margin: 0 0 16px 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #888;
 }
 
 .option-cards {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .option-card {
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid transparent;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .option-card:hover {
@@ -172,7 +205,7 @@ h2 {
 }
 
 .option-title {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #fff;
 }
@@ -182,8 +215,81 @@ h2 {
 }
 
 .option-desc {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: #888;
   line-height: 1.4;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  color: #fff;
+}
+
+.toggle-switch {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 50px;
+}
+
+.toggle-switch:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.toggle-switch.active {
+  background: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
+}
+
+.cycle-btn {
+  background: rgba(192, 132, 252, 0.2);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c084fc;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.cycle-btn:hover {
+  background: rgba(192, 132, 252, 0.3);
+}
+
+/* Mobile - fullscreen overlay */
+.panel-mobile {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  transform: translateX(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.panel-mobile .panel-content {
+  padding: 60px 20px 20px;
+}
+
+.panel-mobile.panel-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 </style>
