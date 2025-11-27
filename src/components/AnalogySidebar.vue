@@ -39,19 +39,19 @@ const emit = defineEmits<{
             class="analogy-column"
           >
             <div class="analogy-pair">
-              <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
+              <span class="token">{{ result.from }}</span>
               <span class="arrow" :style="{ color: result.color }">▼</span>
-              <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
+              <span class="token">{{ result.to }}</span>
             </div>
             <div class="analogy-pair">
-              <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
+              <span class="token">{{ result.apply }}</span>
               <span class="arrow" :style="{ color: result.color }">▼</span>
               <div class="results-list">
                 <span
                   v-for="(token, i) in result.results"
                   :key="i"
                   class="token result"
-                  :style="{ color: result.color, opacity: getResultOpacity(i) }"
+                  :style="{ backgroundColor: result.color, opacity: getResultOpacity(i) }"
                 >{{ token }}</span>
               </div>
             </div>
@@ -130,6 +130,7 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #e0e0e0;
 }
 
 .analogy-pair .arrow {
@@ -146,9 +147,9 @@ h2 {
 
 .analogy-pair .token.result {
   padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   font-size: 14px;
+  color: #0d1117;
 }
 
 .analogy-pair .token.result:first-child {

@@ -325,10 +325,12 @@ function createNoVisualMessage() {
 function init() {
   if (!containerRef.value) return;
 
+  const bg_color: number = 0x11111118;
+  // const bg_color: number = 0x1a1a2e;
+
   // Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a2e);
-
+  scene.background = new THREE.Color(bg_color);
   // Camera - start closer on desktop
   camera = new THREE.PerspectiveCamera(
     60,
