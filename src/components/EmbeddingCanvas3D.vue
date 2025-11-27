@@ -88,18 +88,6 @@ interface AnalogyState {
 
 let analogyStates: AnalogyState[] = [];
 
-// Helper to find distance to nearest point
-function findNearestPointDistance(position: THREE.Vector3): number {
-  let minDistance = Infinity;
-  for (const state of pointStates) {
-    const distance = position.distanceTo(state.current);
-    if (distance < minDistance) {
-      minDistance = distance;
-    }
-  }
-  return minDistance;
-}
-
 // Helper to find the nearest tokens and their distances to a position (returns top N)
 function findNearestTokensWithDistances(position: THREE.Vector3, count: number = 5): { token: string; distance: number }[] {
   const distances: { token: string; distance: number }[] = [];
@@ -112,11 +100,6 @@ function findNearestTokensWithDistances(position: THREE.Vector3, count: number =
   }
   distances.sort((a, b) => a.distance - b.distance);
   return distances.slice(0, count);
-}
-
-// Helper to find the nearest tokens to a position (returns top N)
-function findNearestTokens(position: THREE.Vector3, count: number = 5): string[] {
-  return findNearestTokensWithDistances(position, count).map((d) => d.token);
 }
 
 // Helper to find nearest tokens in full 50D embedding space
