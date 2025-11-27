@@ -5,7 +5,7 @@ import BottomBar from './components/BottomBar.vue';
 import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
 import SettingsModal, { type ProjectionMode, type SphereCount } from './components/SettingsModal.vue';
-import type { AnalogyDisplayMode } from './config/config';
+import { defaultAnalogyDisplayMode, type AnalogyDisplayMode } from './config/config';
 import { reduceToPCA3D, reduceToNaive3D } from './utils/pca';
 import type { TokenEmbedding } from './types/types';
 
@@ -16,7 +16,7 @@ const dimensions = ref<1 | 2 | 3>(3);
 const projectionMode = ref<ProjectionMode>('pca_reduction');
 const showArrows = ref(true);
 const sphereCount = ref<SphereCount>(5);
-const analogyDisplayMode = ref<AnalogyDisplayMode>('arrow');
+const analogyDisplayMode = ref<AnalogyDisplayMode>(defaultAnalogyDisplayMode);
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);

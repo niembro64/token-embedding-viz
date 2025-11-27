@@ -42,9 +42,9 @@ export interface AnalogyConfig {
 
 // Configure analogies here (colors balanced for equal perceived brightness)
 export const analogies: AnalogyConfig[] = [
-  { from: 'italy', to: 'pasta', apply: 'japan', color: '#60a5fa' },    // blue
-  { from: 'boy', to: 'girl', apply: 'man', color: '#f87171' },         // red
-  { from: 'run', to: 'ran', apply: 'walk', color: '#fbbf24' },         // yellow
+  { from: 'italy', to: 'pasta', apply: 'japan', color: '#60a5fa' }, // blue
+  { from: 'boy', to: 'girl', apply: 'man', color: '#f87171' }, // red
+  { from: 'run', to: 'ran', apply: 'walk', color: '#fbbf24' }, // yellow
   { from: 'london', to: 'england', apply: 'beijing', color: '#4ade80' }, // green
 ];
 // export const analogies: AnalogyConfig[] = [
@@ -59,6 +59,7 @@ export type AnalogyDisplayMode = 'colon' | 'arrow' | 'text';
 // 'colon' = "a : b :: c : d"
 // 'arrow' = "a > b as c > d"
 // 'text'  = "a is to b as c is to d"
+export const defaultAnalogyDisplayMode: AnalogyDisplayMode = 'text';
 
 // Number of nearest tokens to find for each analogy
 export const resultCount = 5;
@@ -97,9 +98,9 @@ export function hexToRgba(hex: string, opacity: number): string {
 
 export const animation = {
   // Spring physics (underdamped)
-  springK: 120,        // Spring stiffness
-  damping: 12,         // Damping coefficient (underdamped < 2*sqrt(k))
-  dt: 1 / 60,          // Time step
+  springK: 120, // Spring stiffness
+  damping: 12, // Damping coefficient (underdamped < 2*sqrt(k))
+  dt: 1 / 60, // Time step
 
   // Auto-rotation
   maxSpeed: 2,
@@ -155,7 +156,7 @@ export const camera = {
   far: 1000,
   distanceDesktop: 8,
   distanceMobile: 15,
-  heightRatio: 0.6,  // Camera height as ratio of distance
+  heightRatio: 0.6, // Camera height as ratio of distance
 };
 
 // -----------------------------------------------------------------------------
