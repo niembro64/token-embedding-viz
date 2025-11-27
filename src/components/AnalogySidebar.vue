@@ -37,12 +37,12 @@ const emit = defineEmits<{
           >
             <div class="analogy-pair">
               <span class="token" :style="{ color: result.color }">{{ result.from }}</span>
-              <span class="arrow" :style="{ color: result.color }">↓</span>
+              <span class="arrow" :style="{ color: result.color }">▼</span>
               <span class="token" :style="{ color: result.color }">{{ result.to }}</span>
             </div>
             <div class="analogy-pair">
               <span class="token" :style="{ color: result.color }">{{ result.apply }}</span>
-              <span class="arrow" :style="{ color: result.color }">↓</span>
+              <span class="arrow" :style="{ color: result.color }">▼</span>
               <div class="results-list">
                 <span
                   v-for="(token, i) in result.results"
@@ -136,7 +136,7 @@ const emit = defineEmits<{
 }
 
 .analogy-pair .arrow {
-  font-size: 18px;
+  font-size: 12px;
   line-height: 1;
 }
 
