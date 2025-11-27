@@ -102,6 +102,7 @@ function getProjectionLabel(mode: ProjectionMode): string {
   border: none;
   height: 42px;
   padding: 0 20px;
+  font-family: monospace;
   font-size: 14px;
   font-weight: 700;
   border-radius: 6px;
