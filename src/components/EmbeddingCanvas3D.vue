@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { ReducedEmbedding3D } from '../types/embedding';
+import type { ReducedEmbedding3D } from '../types/types';
 import { normalize3D } from '../utils/pca';
 
 const props = defineProps<{
@@ -220,8 +220,8 @@ function createTextSprite(text: string, color: string = '#e0e0e0', centered: boo
   canvas.width = 512;
   canvas.height = 128;
 
-  context.fillStyle = 'rgba(0, 0, 0, 0)';
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  // Clear to fully transparent
+  context.clearRect(0, 0, canvas.width, canvas.height);
 
   context.font = 'bold 64px monospace';
   context.fillStyle = color;
