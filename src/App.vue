@@ -12,7 +12,7 @@ const embeddings = ref<TokenEmbedding[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const dimensions = ref<1 | 2 | 3>(3);
-const projectionMode = ref<ProjectionMode>('pca');
+const projectionMode = ref<ProjectionMode>('pca_reduction');
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
@@ -37,10 +37,14 @@ function toggleSettings() {
 
 // Reduce to 3D based on projection mode
 const points3D = computed(() => {
-  if (projectionMode.value === 'pca') {
+  if (projectionMode.value === 'pca_reduction') {
     return reduceToPCA3D(embeddings.value);
   }
-  return reduceToRaw3D(embeddings.value);
+  if (projectionMode.value === 'embedding_reduction') {
+    return reduceToRaw3D(embeddings.value);
+  }
+  // For embedding_full, return empty array (no 3D visualization)
+  return [];
 });
 
 // Derive 1D/2D/3D views from the same 3D reduction
@@ -102,6 +106,8 @@ onUnmounted(() => {
           :dimensions="dimensions"
           :width="viewportWidth"
           :height="viewportHeight"
+          :projection-mode="projectionMode"
+          :original-embeddings="embeddings"
         />
       </div>
 

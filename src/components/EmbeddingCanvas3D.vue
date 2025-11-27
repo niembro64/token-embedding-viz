@@ -2,7 +2,8 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { ReducedEmbedding3D } from '../types/types';
+import type { ReducedEmbedding3D, TokenEmbedding } from '../types/types';
+import type { ProjectionMode } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
 
 const props = defineProps<{
@@ -10,6 +11,8 @@ const props = defineProps<{
   dimensions: 1 | 2 | 3;
   width: number;
   height: number;
+  projectionMode: ProjectionMode;
+  originalEmbeddings: TokenEmbedding[];
 }>();
 
 // Scale multipliers for each dimension
@@ -30,6 +33,7 @@ let renderer: THREE.WebGLRenderer;
 let controls: OrbitControls;
 let pointsGroup: THREE.Group;
 let labelsGroup: THREE.Group;
+let noVisualGroup: THREE.Group;
 let raycaster: THREE.Raycaster;
 let mouse: THREE.Vector2;
 let animationId: number;
@@ -108,6 +112,68 @@ function findNearestTokens(position: THREE.Vector3, count: number = 5): string[]
   }
   distances.sort((a, b) => a.distance - b.distance);
   return distances.slice(0, count).map((d) => d.token);
+}
+
+// Helper to find nearest tokens in full 50D embedding space
+function findNearestTokensFullEmbedding(targetEmbedding: number[], count: number = 5): string[] {
+  const distances: { token: string; distance: number }[] = [];
+
+  for (const embedding of props.originalEmbeddings) {
+    // Euclidean distance in 50D
+    let sum = 0;
+    for (let i = 0; i < targetEmbedding.length; i++) {
+      const diff = (targetEmbedding[i] ?? 0) - (embedding.embedding[i] ?? 0);
+      sum += diff * diff;
+    }
+    distances.push({ token: embedding.token, distance: Math.sqrt(sum) });
+  }
+
+  distances.sort((a, b) => a.distance - b.distance);
+  return distances.slice(0, count).map((d) => d.token);
+}
+
+// Compute analogies using full 50D embeddings
+function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
+  const results: typeof analogyResults.value = [];
+
+  for (const analogy of analogies) {
+    const colorHex = '#' + analogy.color.toString(16).padStart(6, '0');
+
+    const fromEmb = props.originalEmbeddings.find(e => e.token === analogy.from);
+    const toEmb = props.originalEmbeddings.find(e => e.token === analogy.to);
+    const applyEmb = props.originalEmbeddings.find(e => e.token === analogy.apply);
+
+    if (!fromEmb || !toEmb || !applyEmb) {
+      results.push({
+        from: analogy.from,
+        to: analogy.to,
+        apply: analogy.apply,
+        results: ['?'],
+        color: colorHex,
+      });
+      continue;
+    }
+
+    // Compute: result = apply + (to - from)
+    const resultEmbedding: number[] = [];
+    for (let i = 0; i < applyEmb.embedding.length; i++) {
+      const diff = (toEmb.embedding[i] ?? 0) - (fromEmb.embedding[i] ?? 0);
+      resultEmbedding.push((applyEmb.embedding[i] ?? 0) + diff);
+    }
+
+    // Find nearest tokens to the result embedding
+    const nearestTokens = findNearestTokensFullEmbedding(resultEmbedding, 5);
+
+    results.push({
+      from: analogy.from,
+      to: analogy.to,
+      apply: analogy.apply,
+      results: nearestTokens,
+      color: colorHex,
+    });
+  }
+
+  return results;
 }
 
 // Create a custom thick arrow (cylinder stem + cone head)
@@ -214,7 +280,7 @@ const springK = 120; // Spring stiffness
 const damping = 12; // Damping coefficient (underdamped < 2*sqrt(k))
 const dt = 1 / 60; // Time step
 
-function createTextSprite(text: string, color: string = '#e0e0e0', centered: boolean = false): THREE.Sprite {
+function createTextSprite(text: string, color: string = '#e0e0e0', centered: boolean = false, fontSize: number = 64): THREE.Sprite {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d')!;
   canvas.width = 512;
@@ -223,7 +289,7 @@ function createTextSprite(text: string, color: string = '#e0e0e0', centered: boo
   // Clear to fully transparent
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  context.font = 'bold 64px monospace';
+  context.font = `bold ${fontSize}px monospace`;
   context.fillStyle = color;
   context.textAlign = centered ? 'center' : 'left';
   context.fillText(text, centered ? canvas.width / 2 : 8, 80);
@@ -239,6 +305,25 @@ function createTextSprite(text: string, color: string = '#e0e0e0', centered: boo
   sprite.center.set(centered ? 0.5 : 0, 0.5);
 
   return sprite;
+}
+
+function createNoVisualMessage() {
+  noVisualGroup = new THREE.Group();
+
+  // "No Visual Possible" text
+  const line1 = createTextSprite('No Visual Possible', '#888888', true, 48);
+  line1.scale.set(8, 2, 1);
+  line1.position.set(0, 1, 0);
+  noVisualGroup.add(line1);
+
+  // "50 Dimensions" text
+  const line2 = createTextSprite('50 Dimensions', '#c084fc', true, 56);
+  line2.scale.set(6, 1.5, 1);
+  line2.position.set(0, -0.5, 0);
+  noVisualGroup.add(line2);
+
+  noVisualGroup.visible = false;
+  scene.add(noVisualGroup);
 }
 
 function init() {
@@ -314,7 +399,18 @@ function init() {
   const gridHelper = new THREE.GridHelper(12, 12, 0x444444, 0x333333);
   scene.add(gridHelper);
 
-  initializePoints();
+  // Create "No Visual Possible" message (hidden by default)
+  createNoVisualMessage();
+
+  // Initialize based on mode
+  if (props.projectionMode !== 'embedding_full') {
+    initializePoints();
+  } else {
+    // In full mode, just compute analogies
+    analogyResults.value = computeFullEmbeddingAnalogies();
+  }
+
+  updateVisibility();
   animate();
 
   // Event listeners
@@ -324,8 +420,30 @@ function init() {
   renderer.domElement.addEventListener('pointerleave', onInteractionEnd);
 }
 
+function updateVisibility() {
+  const isFullMode = props.projectionMode === 'embedding_full';
+
+  // Toggle visibility of 3D elements
+  pointsGroup.visible = !isFullMode;
+  labelsGroup.visible = !isFullMode;
+
+  // Toggle visibility of analogy arrows/spheres
+  for (const state of analogyStates) {
+    if (state.fromToArrow) state.fromToArrow.visible = !isFullMode;
+    if (state.applyArrow) state.applyArrow.visible = !isFullMode;
+    if (state.questionMark) state.questionMark.visible = !isFullMode;
+    if (state.sphere) state.sphere.visible = !isFullMode;
+  }
+
+  // Toggle "No Visual" message
+  if (noVisualGroup) {
+    noVisualGroup.visible = isFullMode;
+  }
+}
+
 function initializePoints() {
   if (!pointsGroup || !labelsGroup) return;
+  if (props.points.length === 0) return;
 
   const normalizedPoints = normalize3D(props.points, 10);
   const initialScale = scaleByDimension[props.dimensions] ?? 1.0;
@@ -437,6 +555,8 @@ function initializePoints() {
 }
 
 function updateTargets() {
+  if (props.points.length === 0) return;
+
   const normalizedPoints = normalize3D(props.points, 10);
   const targetScale = scaleByDimension[props.dimensions] ?? 1.0;
 
@@ -542,6 +662,12 @@ function animate() {
 
   controls.autoRotateSpeed = currentSpeed;
   controls.update();
+
+  // In full mode, just render and skip point updates
+  if (props.projectionMode === 'embedding_full') {
+    renderer.render(scene, camera);
+    return;
+  }
 
   // Update spring physics
   updateSpringPhysics();
@@ -663,6 +789,14 @@ onUnmounted(() => {
 watch(
   () => props.points,
   () => {
+    if (props.projectionMode === 'embedding_full') {
+      // In full mode, recompute analogies with full embeddings
+      analogyResults.value = computeFullEmbeddingAnalogies();
+      return;
+    }
+
+    if (props.points.length === 0) return;
+
     if (pointStates.length > 0) {
       updateTargets();
     } else {
@@ -670,6 +804,24 @@ watch(
     }
   },
   { deep: true }
+);
+
+// Watch for projection mode changes
+watch(
+  () => props.projectionMode,
+  (newMode) => {
+    updateVisibility();
+
+    if (newMode === 'embedding_full') {
+      // Compute analogies using full embeddings
+      analogyResults.value = computeFullEmbeddingAnalogies();
+    } else if (props.points.length > 0) {
+      // Make sure points are initialized for non-full modes
+      if (pointStates.length === 0) {
+        initializePoints();
+      }
+    }
+  }
 );
 
 watch([() => props.width, () => props.height], handleResize);

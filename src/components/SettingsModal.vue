@@ -1,5 +1,5 @@
 <script setup lang="ts">
-export type ProjectionMode = 'pca' | 'raw';
+export type ProjectionMode = 'pca_reduction' | 'embedding_reduction' | 'embedding_full';
 
 defineProps<{
   visible: boolean;
@@ -31,25 +31,34 @@ function selectMode(mode: ProjectionMode) {
 
       <div class="setting-group">
         <h3>Projection Mode</h3>
-        <p class="setting-description">Choose how to reduce dimensions for visualization</p>
+        <p class="setting-description">Choose how to visualize the embeddings</p>
 
         <div class="option-cards">
           <button
             class="option-card"
-            :class="{ active: projectionMode === 'pca' }"
-            @click="selectMode('pca')"
+            :class="{ active: projectionMode === 'pca_reduction' }"
+            @click="selectMode('pca_reduction')"
           >
-            <span class="option-title">PCA</span>
-            <span class="option-desc">Principal Component Analysis - finds axes of maximum variance</span>
+            <span class="option-title">PCA Reduction</span>
+            <span class="option-desc">Principal Component Analysis - finds axes of maximum variance (50D → 3D)</span>
           </button>
 
           <button
             class="option-card"
-            :class="{ active: projectionMode === 'raw' }"
-            @click="selectMode('raw')"
+            :class="{ active: projectionMode === 'embedding_reduction' }"
+            @click="selectMode('embedding_reduction')"
           >
-            <span class="option-title">Raw</span>
-            <span class="option-desc">Use first 3 dimensions of the original embedding directly</span>
+            <span class="option-title">Embedding Reduction</span>
+            <span class="option-desc">Use first 3 dimensions of the original embedding directly (50D → 3D)</span>
+          </button>
+
+          <button
+            class="option-card"
+            :class="{ active: projectionMode === 'embedding_full' }"
+            @click="selectMode('embedding_full')"
+          >
+            <span class="option-title">Full Embedding</span>
+            <span class="option-desc">No dimension reduction - word analogies computed in full 50D space</span>
           </button>
         </div>
       </div>

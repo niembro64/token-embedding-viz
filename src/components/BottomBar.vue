@@ -16,15 +16,26 @@ const emit = defineEmits<{
 }>();
 
 function getProjectionLabel(mode: ProjectionMode): string {
-  return mode === 'pca' ? 'PCA' : 'Raw';
+  switch (mode) {
+    case 'pca_reduction': return 'PCA';
+    case 'embedding_reduction': return 'Raw';
+    case 'embedding_full': return 'Full 50D';
+  }
 }
 </script>
 
 <template>
   <div class="bottom-bar">
     <div class="bottom-bar-left">
-      <h1>Token Embedding Visualization</h1>
-      <p class="subtitle">{{ getProjectionLabel(projectionMode) }} reduction from 50D to {{ dimensions }}D · {{ tokenCount }} tokens</p>
+      <h1>Token Embeddings</h1>
+      <p class="subtitle">
+        <template v-if="projectionMode === 'embedding_full'">
+          Full 50D embeddings · {{ tokenCount }} tokens
+        </template>
+        <template v-else>
+          {{ getProjectionLabel(projectionMode) }} reduction from 50D to {{ dimensions }}D · {{ tokenCount }} tokens
+        </template>
+      </p>
     </div>
     <div class="bottom-bar-right">
       <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
@@ -85,7 +96,8 @@ function getProjectionLabel(mode: ProjectionMode): string {
   background: #c084fc;
   color: #0d1117;
   border: none;
-  padding: 10px 20px;
+  height: 42px;
+  padding: 0 20px;
   font-size: 14px;
   font-weight: 700;
   border-radius: 6px;
@@ -106,7 +118,8 @@ function getProjectionLabel(mode: ProjectionMode): string {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
   border: none;
-  padding: 10px 20px;
+  height: 42px;
+  padding: 0 20px;
   font-size: 14px;
   font-weight: 700;
   border-radius: 6px;
@@ -178,7 +191,8 @@ function getProjectionLabel(mode: ProjectionMode): string {
 
   .toggle-btn,
   .analogies-btn {
-    padding: 8px 14px;
+    height: 36px;
+    padding: 0 14px;
     font-size: 12px;
   }
 
