@@ -4,13 +4,15 @@ import EmbeddingCanvas3D from './components/EmbeddingCanvas3D.vue';
 import BottomBar from './components/BottomBar.vue';
 import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
-import { reduceTo3D } from './utils/pca';
+import SettingsModal, { type ProjectionMode } from './components/SettingsModal.vue';
+import { reduceToPCA3D, reduceToRaw3D } from './utils/pca';
 import type { TokenEmbedding } from './types/types';
 
 const embeddings = ref<TokenEmbedding[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const dimensions = ref<1 | 2 | 3>(3);
+const projectionMode = ref<ProjectionMode>('pca');
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
@@ -22,28 +24,38 @@ const analogyResults = computed(() => canvasRef.value?.analogyResults ?? []);
 
 // Sidebar visibility (for mobile)
 const sidebarVisible = ref(false);
+const settingsVisible = ref(false);
 const isMobile = computed(() => viewportWidth.value < 768);
 
 function toggleSidebar() {
   sidebarVisible.value = !sidebarVisible.value;
 }
 
-// Single PCA reduction to 3D - computed once
-const points3D = computed(() => reduceTo3D(embeddings.value));
+function toggleSettings() {
+  settingsVisible.value = !settingsVisible.value;
+}
+
+// Reduce to 3D based on projection mode
+const points3D = computed(() => {
+  if (projectionMode.value === 'pca') {
+    return reduceToPCA3D(embeddings.value);
+  }
+  return reduceToRaw3D(embeddings.value);
+});
 
 // Derive 1D/2D/3D views from the same 3D reduction
 // Mapping: PC1→x, PC2→z (grid plane), PC3→y (up)
 const currentPoints = computed(() => {
   const pts = points3D.value;
   if (dimensions.value === 1) {
-    // PC1 only, on x-axis
+    // First component only, on x-axis
     return pts.map(p => ({ token: p.token, x: p.x, y: 0, z: 0 }));
   }
   if (dimensions.value === 2) {
-    // PC1→x, PC2→z (on grid plane, y=0)
+    // First two components: x→x, y→z (on grid plane, y=0)
     return pts.map(p => ({ token: p.token, x: p.x, y: 0, z: p.y }));
   }
-  // 3D: PC1→x, PC2→z, PC3→y (up)
+  // 3D: x→x, y→z, z→y (up)
   return pts.map(p => ({ token: p.token, x: p.x, y: p.z, z: p.y }));
 });
 
@@ -100,12 +112,23 @@ onUnmounted(() => {
         @close="toggleSidebar"
       />
 
+      <SettingsModal
+        :visible="settingsVisible"
+        :is-mobile="isMobile"
+        :projection-mode="projectionMode"
+        @close="toggleSettings"
+        @update:projection-mode="projectionMode = $event"
+      />
+
       <BottomBar
         :dimensions="dimensions"
         :token-count="embeddings.length"
         :sidebar-visible="sidebarVisible"
+        :settings-visible="settingsVisible"
+        :projection-mode="projectionMode"
         @cycle-dimensions="cycleDimensions"
         @toggle-sidebar="toggleSidebar"
+        @toggle-settings="toggleSettings"
       />
     </template>
   </div>

@@ -1,7 +1,7 @@
 import { PCA } from 'ml-pca';
 import type { TokenEmbedding, ReducedEmbedding3D } from '../types/types';
 
-export function reduceTo3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
+export function reduceToPCA3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
   const matrix = embeddings.map(e => e.embedding);
   const pca = new PCA(matrix);
   const reduced = pca.predict(matrix, { nComponents: 3 });
@@ -15,6 +15,15 @@ export function reduceTo3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
       z: row[2] ?? 0,
     };
   });
+}
+
+export function reduceToRaw3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
+  return embeddings.map(embedding => ({
+    token: embedding.token,
+    x: embedding.embedding[0] ?? 0,
+    y: embedding.embedding[1] ?? 0,
+    z: embedding.embedding[2] ?? 0,
+  }));
 }
 
 export function normalize3D(points: ReducedEmbedding3D[], scale: number = 10): ReducedEmbedding3D[] {

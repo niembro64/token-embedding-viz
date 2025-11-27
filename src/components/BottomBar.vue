@@ -1,24 +1,36 @@
 <script setup lang="ts">
+import type { ProjectionMode } from './SettingsModal.vue';
+
 defineProps<{
   dimensions: 1 | 2 | 3;
   tokenCount: number;
   sidebarVisible: boolean;
+  settingsVisible: boolean;
+  projectionMode: ProjectionMode;
 }>();
 
 const emit = defineEmits<{
   cycleDimensions: [];
   toggleSidebar: [];
+  toggleSettings: [];
 }>();
+
+function getProjectionLabel(mode: ProjectionMode): string {
+  return mode === 'pca' ? 'PCA' : 'Raw';
+}
 </script>
 
 <template>
   <div class="bottom-bar">
     <div class="bottom-bar-left">
       <h1>Token Embedding Visualization</h1>
-      <p class="subtitle">PCA reduction from 50D to {{ dimensions }}D · {{ tokenCount }} tokens</p>
+      <p class="subtitle">{{ getProjectionLabel(projectionMode) }} reduction from 50D to {{ dimensions }}D · {{ tokenCount }} tokens</p>
     </div>
     <div class="bottom-bar-right">
       <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
+      <button class="icon-btn" :class="{ active: settingsVisible }" @click="emit('toggleSettings')" title="Settings">
+        ⚙️
+      </button>
       <button class="analogies-btn" :class="{ active: sidebarVisible }" @click="emit('toggleSidebar')">
         Analogies
       </button>
@@ -116,6 +128,33 @@ const emit = defineEmits<{
   transform: scale(0.98);
 }
 
+.icon-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.icon-btn.active {
+  background: rgba(192, 132, 252, 0.3);
+}
+
+.icon-btn:active {
+  transform: scale(0.98);
+}
+
 @media (max-width: 767px) {
   .bottom-bar {
     padding: 0 12px;
@@ -141,6 +180,12 @@ const emit = defineEmits<{
   .analogies-btn {
     padding: 8px 14px;
     font-size: 12px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
   }
 }
 </style>
