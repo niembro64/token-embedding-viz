@@ -45,8 +45,12 @@ function getProjectionLabel(mode: ProjectionMode): string {
       <button class="analogies-btn" :class="{ active: sidebarVisible }" @click="emit('toggleSidebar')">
         Analogies
       </button>
-      <button class="toggle-btn" @click="emit('cycleDimensions')">
-        {{ dimensions }}D
+      <button
+        class="toggle-btn"
+        :class="{ disabled: projectionMode === 'embedding_full' }"
+        @click="projectionMode !== 'embedding_full' && emit('cycleDimensions')"
+      >
+        {{ projectionMode === 'embedding_full' ? '50D' : `${dimensions}D` }}
       </button>
     </div>
   </div>
@@ -112,6 +116,19 @@ function getProjectionLabel(mode: ProjectionMode): string {
 
 .toggle-btn:active {
   transform: scale(0.98);
+}
+
+.toggle-btn.disabled {
+  background: rgba(192, 132, 252, 0.5);
+  cursor: default;
+}
+
+.toggle-btn.disabled:hover {
+  background: rgba(192, 132, 252, 0.5);
+}
+
+.toggle-btn.disabled:active {
+  transform: none;
 }
 
 .analogies-btn {

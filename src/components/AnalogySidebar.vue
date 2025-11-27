@@ -105,7 +105,7 @@ const emit = defineEmits<{
 .analogy-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 12px;
   justify-content: center;
 }
 
@@ -113,7 +113,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
   width: 90px;
   flex-shrink: 0;
 }
@@ -122,7 +122,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
 }
 
 .analogy-pair .token {
@@ -144,11 +144,11 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 
 .analogy-pair .token.result {
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   font-size: 14px;

@@ -22,10 +22,10 @@ const canvasRef = ref<InstanceType<typeof EmbeddingCanvas3D> | null>(null);
 
 const analogyResults = computed(() => canvasRef.value?.analogyResults ?? []);
 
-// Sidebar visibility (for mobile)
-const sidebarVisible = ref(false);
-const settingsVisible = ref(false);
+// Sidebar visibility (show by default on desktop, hide on mobile)
 const isMobile = computed(() => viewportWidth.value < 768);
+const sidebarVisible = ref(window.innerWidth >= 768);
+const settingsVisible = ref(false);
 
 function toggleSidebar() {
   sidebarVisible.value = !sidebarVisible.value;
