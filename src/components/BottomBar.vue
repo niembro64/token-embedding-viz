@@ -39,18 +39,18 @@ function getProjectionLabel(mode: ProjectionMode): string {
     </div>
     <div class="bottom-bar-right">
       <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
-      <button class="icon-btn" :class="{ active: settingsVisible }" @click="emit('toggleSettings')" title="Settings">
-        ⚙️
-      </button>
-      <button class="analogies-btn" :class="{ active: sidebarVisible }" @click="emit('toggleSidebar')">
-        Analogies
-      </button>
       <button
         class="toggle-btn"
         :class="{ disabled: projectionMode === 'embedding_full' }"
         @click="projectionMode !== 'embedding_full' && emit('cycleDimensions')"
       >
         {{ projectionMode === 'embedding_full' ? '50D' : `${dimensions}D` }}
+      </button>
+      <button class="analogies-btn" :class="{ active: sidebarVisible }" @click="emit('toggleSidebar')">
+        Analogies
+      </button>
+      <button class="icon-btn" :class="{ active: settingsVisible }" @click="emit('toggleSettings')" title="Settings">
+        ⚙️
       </button>
     </div>
   </div>
