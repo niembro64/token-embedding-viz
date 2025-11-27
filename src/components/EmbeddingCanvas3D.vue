@@ -295,9 +295,15 @@ function createTextSprite(text: string, color: string = '#e0e0e0', centered: boo
   context.fillText(text, centered ? canvas.width / 2 : 8, 80);
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.premultiplyAlpha = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
+    depthWrite: false,
+    alphaTest: 0.01,
   });
   const sprite = new THREE.Sprite(material);
   sprite.scale.set(4, 1, 1);
