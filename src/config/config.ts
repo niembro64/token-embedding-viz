@@ -54,11 +54,20 @@ export const analogies: AnalogyConfig[] = [
 //   { from: 'london', to: 'england', apply: 'beijing', color: '#4ade80' }, // green
 // ];
 
+// Analogy display format
+export type AnalogyDisplayMode = 'colon' | 'arrow' | 'text';
+// 'colon' = "a : b :: c : d"
+// 'arrow' = "a > b as c > d"
+// 'text'  = "a is to b as c is to d"
+
 // Number of nearest tokens to find for each analogy
 export const resultCount = 5;
 
 // Base opacity for analogy colors (applied to sidebar backgrounds and spheres)
 export const analogyColorOpacity = 0.6;
+
+// Opacity for analogy group background in sidebar
+export const analogyGroupOpacity = 0.1;
 
 // Opacity fade rate per result index
 export const opacityFadeRate = 0.2;

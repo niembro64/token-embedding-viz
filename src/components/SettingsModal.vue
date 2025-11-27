@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AnalogyDisplayMode } from '../config/config';
+
 export type ProjectionMode = 'pca_reduction' | 'embedding_reduction' | 'embedding_full';
 export type SphereCount = 0 | 1 | 5;
 
@@ -8,6 +10,7 @@ const props = defineProps<{
   projectionMode: ProjectionMode;
   showArrows: boolean;
   sphereCount: SphereCount;
+  analogyDisplayMode: AnalogyDisplayMode;
 }>();
 
 const emit = defineEmits<{
@@ -15,6 +18,7 @@ const emit = defineEmits<{
   'update:projectionMode': [mode: ProjectionMode];
   'update:showArrows': [show: boolean];
   'update:sphereCount': [count: SphereCount];
+  'update:analogyDisplayMode': [mode: AnalogyDisplayMode];
 }>();
 
 function selectMode(mode: ProjectionMode) {
@@ -30,6 +34,21 @@ function cycleSphereCount() {
   if (current === 0) emit('update:sphereCount', 1);
   else if (current === 1) emit('update:sphereCount', 5);
   else emit('update:sphereCount', 0);
+}
+
+function cycleAnalogyDisplayMode() {
+  const current = props.analogyDisplayMode;
+  if (current === 'arrow') emit('update:analogyDisplayMode', 'colon');
+  else if (current === 'colon') emit('update:analogyDisplayMode', 'text');
+  else emit('update:analogyDisplayMode', 'arrow');
+}
+
+function getAnalogyDisplayLabel(mode: AnalogyDisplayMode): string {
+  switch (mode) {
+    case 'arrow': return 'a → b as c → d';
+    case 'colon': return 'a : b :: c : d';
+    case 'text': return 'a is to b as c is to d';
+  }
 }
 </script>
 
@@ -100,6 +119,16 @@ function cycleSphereCount() {
             @click="cycleSphereCount"
           >
             {{ sphereCount === 0 ? 'None' : sphereCount === 1 ? '1 Sphere' : '5 Spheres' }}
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Display Format</span>
+          <button
+            class="cycle-btn"
+            @click="cycleAnalogyDisplayMode"
+          >
+            {{ getAnalogyDisplayLabel(analogyDisplayMode) }}
           </button>
         </div>
       </div>

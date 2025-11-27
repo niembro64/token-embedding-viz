@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getResultOpacity, analogyColorOpacity, hexToRgba } from '../config/config';
+import { getResultOpacity, analogyColorOpacity, hexToRgba, analogyGroupOpacity, type AnalogyDisplayMode } from '../config/config';
 
 export interface AnalogyResult {
   from: string;
@@ -13,6 +13,7 @@ defineProps<{
   visible: boolean;
   isMobile: boolean;
   analogyResults: AnalogyResult[];
+  displayMode: AnalogyDisplayMode;
 }>();
 
 const emit = defineEmits<{
@@ -37,15 +38,17 @@ const emit = defineEmits<{
             v-for="(result, index) in analogyResults"
             :key="index"
             class="analogy-column"
+            :style="{ backgroundColor: hexToRgba(result.color, analogyGroupOpacity), border: '1px solid ' + hexToRgba(result.color, analogyGroupOpacity * 3) }"
           >
             <div class="analogy-pair">
               <span class="token">{{ result.from }}</span>
-              <span class="arrow" :style="{ color: result.color }">▼</span>
+              <span class="connector" :style="{ color: result.color }">{{ displayMode === 'arrow' ? '▼' : displayMode === 'colon' ? ':' : 'is to' }}</span>
               <span class="token">{{ result.to }}</span>
             </div>
+            <span class="connector" :style="{ color: result.color }">{{ displayMode === 'arrow' ? 'as' : displayMode === 'colon' ? '::' : 'as' }}</span>
             <div class="analogy-pair">
               <span class="token">{{ result.apply }}</span>
-              <span class="arrow" :style="{ color: result.color }">▼</span>
+              <span class="connector" :style="{ color: result.color }">{{ displayMode === 'arrow' ? '▼' : displayMode === 'colon' ? ':' : 'is to' }}</span>
               <div class="results-list">
                 <span
                   v-for="(token, i) in result.results"
@@ -110,9 +113,11 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
   width: 90px;
   flex-shrink: 0;
+  padding: 12px 8px;
+  border-radius: 8px;
 }
 
 .analogy-pair {
@@ -133,9 +138,10 @@ h2 {
   color: #e0e0e0;
 }
 
-.analogy-pair .arrow {
+.connector {
   font-size: 12px;
-  line-height: 1;
+  font-style: italic;
+  opacity: 0.8;
 }
 
 .results-list {
@@ -143,6 +149,7 @@ h2 {
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  margin-top: 4px;
 }
 
 .analogy-pair .token.result {
