@@ -21,8 +21,27 @@ const emit = defineEmits<{
   'update:analogyDisplayMode': [mode: AnalogyDisplayMode];
 }>();
 
-function selectMode(mode: ProjectionMode) {
-  emit('update:projectionMode', mode);
+function cycleProjectionMode() {
+  const current = props.projectionMode;
+  if (current === 'pca_reduction') emit('update:projectionMode', 'embedding_reduction');
+  else if (current === 'embedding_reduction') emit('update:projectionMode', 'embedding_full');
+  else emit('update:projectionMode', 'pca_reduction');
+}
+
+function getProjectionModeLabel(mode: ProjectionMode): string {
+  switch (mode) {
+    case 'pca_reduction': return 'PCA';
+    case 'embedding_reduction': return 'Naive';
+    case 'embedding_full': return 'Full 50D';
+  }
+}
+
+function getProjectionModeDesc(mode: ProjectionMode): string {
+  switch (mode) {
+    case 'pca_reduction': return 'Principal Component Analysis finds axes of maximum variance';
+    case 'embedding_reduction': return 'Uses first 3 dimensions of the original embedding';
+    case 'embedding_full': return 'No reduction - analogies computed in full 50D space';
+  }
 }
 
 function toggleArrows() {
@@ -65,36 +84,17 @@ function getAnalogyDisplayLabel(mode: AnalogyDisplayMode): string {
 
       <div class="setting-group">
         <h3>Projection Mode</h3>
-        <p class="setting-description">Choose how to visualize the embeddings</p>
 
-        <div class="option-cards">
+        <div class="toggle-row with-desc">
+          <span class="toggle-label">Visualization</span>
           <button
-            class="option-card"
-            :class="{ active: projectionMode === 'pca_reduction' }"
-            @click="selectMode('pca_reduction')"
+            class="cycle-btn"
+            @click="cycleProjectionMode"
           >
-            <span class="option-title">PCA Reduction</span>
-            <span class="option-desc">Principal Component Analysis - finds axes of maximum variance (50D → 3D)</span>
-          </button>
-
-          <button
-            class="option-card"
-            :class="{ active: projectionMode === 'embedding_reduction' }"
-            @click="selectMode('embedding_reduction')"
-          >
-            <span class="option-title">Naive Reduction</span>
-            <span class="option-desc">Use first 3 dimensions of the original embedding directly (50D → 3D)</span>
-          </button>
-
-          <button
-            class="option-card"
-            :class="{ active: projectionMode === 'embedding_full' }"
-            @click="selectMode('embedding_full')"
-          >
-            <span class="option-title">Full Embedding</span>
-            <span class="option-desc">No dimension reduction - word analogies computed in full 50D space</span>
+            {{ getProjectionModeLabel(projectionMode) }}
           </button>
         </div>
+        <p class="setting-description inline-desc">{{ getProjectionModeDesc(projectionMode) }}</p>
       </div>
 
       <div class="setting-group">
@@ -205,47 +205,8 @@ h2 {
   color: #888;
 }
 
-.option-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.option-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid transparent;
-  border-radius: 8px;
-  padding: 12px;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.option-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.option-card.active {
-  border-color: #c084fc;
-  background: rgba(192, 132, 252, 0.1);
-}
-
-.option-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #fff;
-}
-
-.option-card.active .option-title {
-  color: #c084fc;
-}
-
-.option-desc {
-  font-size: 0.7rem;
-  color: #888;
+.setting-description.inline-desc {
+  margin: -2px 12px 16px 12px;
   line-height: 1.4;
 }
 
@@ -257,6 +218,10 @@ h2 {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   margin-bottom: 10px;
+}
+
+.toggle-row.with-desc {
+  margin-bottom: 8px;
 }
 
 .toggle-label {
