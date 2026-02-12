@@ -9,3 +9,8 @@ export interface ReducedEmbedding3D {
   y: number;
   z: number;
 }
+
+export interface ReducedEmbeddingND {
+  token: string;
+  values: number[];
+}

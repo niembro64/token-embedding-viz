@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { ReducedEmbedding3D, TokenEmbedding } from '../types/types';
+import type { ReducedEmbedding3D, ReducedEmbeddingND, TokenEmbedding } from '../types/types';
 import type { ProjectionMode, SphereCount } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
 import {
@@ -25,11 +25,12 @@ import {
 
 const props = defineProps<{
   points: ReducedEmbedding3D[];
-  dimensions: 1 | 2 | 3;
+  dimensions: 1 | 2 | 3 | 4 | 5 | 50;
   width: number;
   height: number;
   projectionMode: ProjectionMode;
   originalEmbeddings: TokenEmbedding[];
+  reducedEmbeddingsNd: ReducedEmbeddingND[];
   showArrows: boolean;
   sphereCount: SphereCount;
   analogies: AnalogyConfig[];
@@ -103,15 +104,14 @@ function findNearestTokensWithDistances(position: THREE.Vector3, count: number =
   return distances.slice(0, count);
 }
 
-// Helper to find nearest tokens in full 50D embedding space
-function findNearestTokensFullEmbedding(targetEmbedding: number[], count: number = 5): string[] {
+// Helper to find nearest tokens in N-D reduced embedding space
+function findNearestTokensND(targetValues: number[], reducedEmbeddings: ReducedEmbeddingND[], count: number = 5): string[] {
   const distances: { token: string; distance: number }[] = [];
 
-  for (const embedding of props.originalEmbeddings) {
-    // Euclidean distance in 50D
+  for (const embedding of reducedEmbeddings) {
     let sum = 0;
-    for (let i = 0; i < targetEmbedding.length; i++) {
-      const diff = (targetEmbedding[i] ?? 0) - (embedding.embedding[i] ?? 0);
+    for (let i = 0; i < targetValues.length; i++) {
+      const diff = (targetValues[i] ?? 0) - (embedding.values[i] ?? 0);
       sum += diff * diff;
     }
     distances.push({ token: embedding.token, distance: Math.sqrt(sum) });
@@ -121,14 +121,17 @@ function findNearestTokensFullEmbedding(targetEmbedding: number[], count: number
   return distances.slice(0, count).map((d) => d.token);
 }
 
-// Compute analogies using full 50D embeddings
-function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
+// Compute analogies using N-D reduced embeddings
+function computeNDAnalogies(): typeof analogyResults.value {
+  const reduced = props.reducedEmbeddingsNd;
+  if (reduced.length === 0) return [];
+
   const results: typeof analogyResults.value = [];
 
   for (const analogy of props.analogies) {
-    const fromEmb = props.originalEmbeddings.find(e => e.token === analogy.from);
-    const toEmb = props.originalEmbeddings.find(e => e.token === analogy.to);
-    const applyEmb = props.originalEmbeddings.find(e => e.token === analogy.apply);
+    const fromEmb = reduced.find(e => e.token === analogy.from);
+    const toEmb = reduced.find(e => e.token === analogy.to);
+    const applyEmb = reduced.find(e => e.token === analogy.apply);
 
     if (!fromEmb || !toEmb || !applyEmb) {
       results.push({
@@ -142,14 +145,13 @@ function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
     }
 
     // Compute: result = apply + (to - from)
-    const resultEmbedding: number[] = [];
-    for (let i = 0; i < applyEmb.embedding.length; i++) {
-      const diff = (toEmb.embedding[i] ?? 0) - (fromEmb.embedding[i] ?? 0);
-      resultEmbedding.push((applyEmb.embedding[i] ?? 0) + diff);
+    const resultValues: number[] = [];
+    for (let i = 0; i < applyEmb.values.length; i++) {
+      const diff = (toEmb.values[i] ?? 0) - (fromEmb.values[i] ?? 0);
+      resultValues.push((applyEmb.values[i] ?? 0) + diff);
     }
 
-    // Find nearest tokens to the result embedding
-    const nearestTokens = findNearestTokensFullEmbedding(resultEmbedding, resultCount);
+    const nearestTokens = findNearestTokensND(resultValues, reduced, resultCount);
 
     results.push({
       from: analogy.from,
@@ -307,14 +309,33 @@ function createNoVisualMessage() {
   line1.position.set(0, 1, 0);
   noVisualGroup.add(line1);
 
-  // "50 Dimensions" text
-  const line2 = createTextSprite('50 Dimensions', '#c084fc', true, 56);
+  // "N Dimensions" text (dynamic)
+  const line2 = createTextSprite(`${props.dimensions} Dimensions`, '#c084fc', true, 56);
   line2.scale.set(6, 1.5, 1);
   line2.position.set(0, -0.5, 0);
   noVisualGroup.add(line2);
 
   noVisualGroup.visible = false;
   scene.add(noVisualGroup);
+}
+
+function updateNoVisualMessage() {
+  if (!noVisualGroup) return;
+  // Remove old children and recreate
+  while (noVisualGroup.children.length > 0) {
+    const child = noVisualGroup.children[0];
+    noVisualGroup.remove(child);
+  }
+
+  const line1 = createTextSprite('No Visual Possible', '#888888', true, 48);
+  line1.scale.set(8, 2, 1);
+  line1.position.set(0, 1, 0);
+  noVisualGroup.add(line1);
+
+  const line2 = createTextSprite(`${props.dimensions} Dimensions`, '#c084fc', true, 56);
+  line2.scale.set(6, 1.5, 1);
+  line2.position.set(0, -0.5, 0);
+  noVisualGroup.add(line2);
 }
 
 function init() {
@@ -392,11 +413,11 @@ function init() {
   createNoVisualMessage();
 
   // Initialize based on mode
-  if (props.projectionMode !== 'embedding_full') {
+  if (props.dimensions <= 3) {
     initializePoints();
   } else {
-    // In full mode, just compute analogies
-    analogyResults.value = computeFullEmbeddingAnalogies();
+    // In non-visual mode, compute analogies using N-D embeddings
+    analogyResults.value = computeNDAnalogies();
   }
 
   updateVisibility();
@@ -410,26 +431,25 @@ function init() {
 }
 
 function updateVisibility() {
-  const isFullMode = props.projectionMode === 'embedding_full';
+  const isNonVisual = props.dimensions > 3;
 
   // Toggle visibility of 3D elements
-  pointsGroup.visible = !isFullMode;
-  labelsGroup.visible = !isFullMode;
+  pointsGroup.visible = !isNonVisual;
+  labelsGroup.visible = !isNonVisual;
 
   // Toggle visibility of analogy arrows/spheres
   for (const state of analogyStates) {
-    if (state.fromToArrow) state.fromToArrow.visible = !isFullMode && props.showArrows;
-    if (state.applyArrow) state.applyArrow.visible = !isFullMode && props.showArrows;
-    if (state.questionMark) state.questionMark.visible = !isFullMode && props.showArrows;
-    // Update sphere visibility based on sphereCount
+    if (state.fromToArrow) state.fromToArrow.visible = !isNonVisual && props.showArrows;
+    if (state.applyArrow) state.applyArrow.visible = !isNonVisual && props.showArrows;
+    if (state.questionMark) state.questionMark.visible = !isNonVisual && props.showArrows;
     state.spheres.forEach((sphere, i) => {
-      sphere.visible = !isFullMode && props.sphereCount > i;
+      sphere.visible = !isNonVisual && props.sphereCount > i;
     });
   }
 
   // Toggle "No Visual" message
   if (noVisualGroup) {
-    noVisualGroup.visible = isFullMode;
+    noVisualGroup.visible = isNonVisual;
   }
 }
 
@@ -745,8 +765,8 @@ function animate() {
   controls.autoRotateSpeed = currentSpeed;
   controls.update();
 
-  // In full mode, just render and skip point updates
-  if (props.projectionMode === 'embedding_full') {
+  // In non-visual mode, just render and skip point updates
+  if (props.dimensions > 3) {
     renderer.render(scene, camera);
     return;
   }
@@ -873,12 +893,7 @@ onUnmounted(() => {
 watch(
   () => props.points,
   () => {
-    if (props.projectionMode === 'embedding_full') {
-      // In full mode, recompute analogies with full embeddings
-      analogyResults.value = computeFullEmbeddingAnalogies();
-      return;
-    }
-
+    if (props.dimensions > 3) return;
     if (props.points.length === 0) return;
 
     if (pointStates.length > 0) {
@@ -890,20 +905,36 @@ watch(
   { deep: true }
 );
 
-// Watch for projection mode changes
+// Watch for dimension changes
+watch(
+  () => props.dimensions,
+  () => {
+    if (props.dimensions > 3) {
+      updateNoVisualMessage();
+      analogyResults.value = computeNDAnalogies();
+    } else if (props.points.length > 0 && pointStates.length === 0) {
+      initializePoints();
+    }
+    updateVisibility();
+  }
+);
+
+// Watch for N-D embeddings changes (projection mode switch while in non-visual)
+watch(
+  () => props.reducedEmbeddingsNd,
+  () => {
+    if (props.dimensions > 3) {
+      analogyResults.value = computeNDAnalogies();
+    }
+  }
+);
+
+// Watch for projection mode changes (for visual modes, points3D changes handle it)
 watch(
   () => props.projectionMode,
-  (newMode) => {
-    updateVisibility();
-
-    if (newMode === 'embedding_full') {
-      // Compute analogies using full embeddings
-      analogyResults.value = computeFullEmbeddingAnalogies();
-    } else if (props.points.length > 0) {
-      // Make sure points are initialized for non-full modes
-      if (pointStates.length === 0) {
-        initializePoints();
-      }
+  () => {
+    if (props.dimensions <= 3 && props.points.length > 0 && pointStates.length === 0) {
+      initializePoints();
     }
   }
 );
@@ -923,8 +954,8 @@ watch(
   () => props.analogies,
   () => {
     cleanupAnalogies();
-    if (props.projectionMode === 'embedding_full') {
-      analogyResults.value = computeFullEmbeddingAnalogies();
+    if (props.dimensions > 3) {
+      analogyResults.value = computeNDAnalogies();
     } else if (pointStates.length > 0) {
       initializeAnalogies();
       updateVisibility();

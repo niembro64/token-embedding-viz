@@ -2,7 +2,7 @@
 import type { ProjectionMode } from './SettingsModal.vue';
 
 defineProps<{
-  dimensions: 1 | 2 | 3;
+  dimensions: 1 | 2 | 3 | 4 | 5 | 50;
   tokenCount: number;
   sidebarVisible: boolean;
   settingsVisible: boolean;
@@ -17,9 +17,8 @@ const emit = defineEmits<{
 
 function getProjectionLabel(mode: ProjectionMode): string {
   switch (mode) {
-    case 'pca_reduction': return 'PCA';
-    case 'embedding_reduction': return 'Naive';
-    case 'embedding_full': return 'Full 50D';
+    case 'pca': return 'PCA';
+    case 'naive': return 'Naive';
   }
 }
 </script>
@@ -29,22 +28,16 @@ function getProjectionLabel(mode: ProjectionMode): string {
     <div class="bottom-bar-left">
       <h1>Token Embeddings</h1>
       <p class="subtitle">
-        <template v-if="projectionMode === 'embedding_full'">
-          Full 50D embeddings · {{ tokenCount }} tokens
-        </template>
-        <template v-else>
-          {{ getProjectionLabel(projectionMode) }} reduction from 50D to {{ dimensions }}D · {{ tokenCount }} tokens
-        </template>
+        {{ getProjectionLabel(projectionMode) }} reduction from 50D to {{ dimensions }}D · {{ tokenCount }} tokens
       </p>
     </div>
     <div class="bottom-bar-right">
       <p class="instructions">Drag to rotate | Scroll to zoom | Right-drag to pan</p>
       <button
         class="toggle-btn"
-        :class="{ disabled: projectionMode === 'embedding_full' }"
-        @click="projectionMode !== 'embedding_full' && emit('cycleDimensions')"
+        @click="emit('cycleDimensions')"
       >
-        {{ projectionMode === 'embedding_full' ? '50D' : `${dimensions}D` }}
+        {{ dimensions }}D
       </button>
       <button class="analogies-btn" :class="{ active: sidebarVisible }" @click="emit('toggleSidebar')">
         Analogies
@@ -117,19 +110,6 @@ function getProjectionLabel(mode: ProjectionMode): string {
 
 .toggle-btn:active {
   transform: scale(0.98);
-}
-
-.toggle-btn.disabled {
-  background: rgba(192, 132, 252, 0.5);
-  cursor: default;
-}
-
-.toggle-btn.disabled:hover {
-  background: rgba(192, 132, 252, 0.5);
-}
-
-.toggle-btn.disabled:active {
-  transform: none;
 }
 
 .analogies-btn {

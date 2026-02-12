@@ -1,5 +1,5 @@
 import { PCA } from 'ml-pca';
-import type { TokenEmbedding, ReducedEmbedding3D } from '../types/types';
+import type { TokenEmbedding, ReducedEmbedding3D, ReducedEmbeddingND } from '../types/types';
 
 export function reduceToPCA3D(embeddings: TokenEmbedding[]): ReducedEmbedding3D[] {
   const matrix = embeddings.map(e => e.embedding);
@@ -23,6 +23,27 @@ export function reduceToNaive3D(embeddings: TokenEmbedding[]): ReducedEmbedding3
     x: embedding.embedding[0] ?? 0,
     y: embedding.embedding[1] ?? 0,
     z: embedding.embedding[2] ?? 0,
+  }));
+}
+
+export function reduceToPCA_ND(embeddings: TokenEmbedding[], nComponents: number): ReducedEmbeddingND[] {
+  const matrix = embeddings.map(e => e.embedding);
+  const pca = new PCA(matrix);
+  const reduced = pca.predict(matrix, { nComponents });
+
+  return embeddings.map((embedding, index) => {
+    const row = reduced.getRow(index);
+    return {
+      token: embedding.token,
+      values: Array.from({ length: nComponents }, (_, i) => row[i] ?? 0),
+    };
+  });
+}
+
+export function reduceToNaiveND(embeddings: TokenEmbedding[], nComponents: number): ReducedEmbeddingND[] {
+  return embeddings.map(embedding => ({
+    token: embedding.token,
+    values: Array.from({ length: nComponents }, (_, i) => embedding.embedding[i] ?? 0),
   }));
 }
 

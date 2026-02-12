@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AnalogyDisplayMode } from '../config/config';
 
-export type ProjectionMode = 'pca_reduction' | 'embedding_reduction' | 'embedding_full';
+export type ProjectionMode = 'pca' | 'naive';
 export type SphereCount = 0 | 1 | 5;
 
 const props = defineProps<{
@@ -24,25 +24,21 @@ const emit = defineEmits<{
 }>();
 
 function cycleProjectionMode() {
-  const current = props.projectionMode;
-  if (current === 'pca_reduction') emit('update:projectionMode', 'embedding_reduction');
-  else if (current === 'embedding_reduction') emit('update:projectionMode', 'embedding_full');
-  else emit('update:projectionMode', 'pca_reduction');
+  if (props.projectionMode === 'pca') emit('update:projectionMode', 'naive');
+  else emit('update:projectionMode', 'pca');
 }
 
 function getProjectionModeLabel(mode: ProjectionMode): string {
   switch (mode) {
-    case 'pca_reduction': return 'PCA';
-    case 'embedding_reduction': return 'Naive';
-    case 'embedding_full': return 'Full 50D';
+    case 'pca': return 'PCA';
+    case 'naive': return 'Naive';
   }
 }
 
 function getProjectionModeDesc(mode: ProjectionMode): string {
   switch (mode) {
-    case 'pca_reduction': return 'Principal Component Analysis finds axes of maximum variance';
-    case 'embedding_reduction': return 'Uses first 3 dimensions of the original embedding';
-    case 'embedding_full': return 'No reduction - analogies computed in full 50D space';
+    case 'pca': return 'Principal Component Analysis finds axes of maximum variance';
+    case 'naive': return 'Uses first N dimensions of the original embedding';
   }
 }
 

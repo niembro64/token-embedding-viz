@@ -117,7 +117,7 @@ export const animation = {
 
 export const scales = {
   // Scale multipliers for each dimension view
-  byDimension: { 1: 0.5, 2: 0.75, 3: 1.0 } as Record<number, number>,
+  byDimension: { 1: 0.5, 2: 0.75, 3: 1.0, 4: 1.0, 5: 1.0, 50: 1.0 } as Record<number, number>,
 
   // Base sprite scale for labels
   baseSprite: { x: 4, y: 1 },

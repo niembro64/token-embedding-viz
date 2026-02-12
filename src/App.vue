@@ -6,14 +6,14 @@ import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
 import SettingsModal, { type ProjectionMode, type SphereCount } from './components/SettingsModal.vue';
 import { defaultAnalogyDisplayMode, defaultAnalogies, type AnalogyDisplayMode, type AnalogyConfig } from './config/config';
-import { reduceToPCA3D, reduceToNaive3D } from './utils/pca';
-import type { TokenEmbedding } from './types/types';
+import { reduceToPCA3D, reduceToNaive3D, reduceToPCA_ND, reduceToNaiveND } from './utils/pca';
+import type { TokenEmbedding, ReducedEmbeddingND } from './types/types';
 
 const embeddings = ref<TokenEmbedding[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const dimensions = ref<1 | 2 | 3>(3);
-const projectionMode = ref<ProjectionMode>('pca_reduction');
+const dimensions = ref<1 | 2 | 3 | 4 | 5 | 50>(3);
+const projectionMode = ref<ProjectionMode>('pca');
 const showArrows = ref(true);
 const sphereCount = ref<SphereCount>(5);
 const analogyDisplayMode = ref<AnalogyDisplayMode>(defaultAnalogyDisplayMode);
@@ -45,16 +45,23 @@ function toggleSettings() {
   settingsVisible.value = !settingsVisible.value;
 }
 
-// Reduce to 3D based on projection mode
+// Reduce to 3D based on projection mode (only for visual dims 1-3)
 const points3D = computed(() => {
-  if (projectionMode.value === 'pca_reduction') {
+  if (dimensions.value > 3) return [];
+  if (projectionMode.value === 'pca') {
     return reduceToPCA3D(embeddings.value);
   }
-  if (projectionMode.value === 'embedding_reduction') {
-    return reduceToNaive3D(embeddings.value);
+  return reduceToNaive3D(embeddings.value);
+});
+
+// N-D reduced embeddings for non-visual modes (4/5/50D)
+const reducedEmbeddingsND = computed<ReducedEmbeddingND[]>(() => {
+  const dim = dimensions.value;
+  if (dim <= 3) return [];
+  if (projectionMode.value === 'pca') {
+    return reduceToPCA_ND(embeddings.value, dim);
   }
-  // For embedding_full, return empty array (no 3D visualization)
-  return [];
+  return reduceToNaiveND(embeddings.value, dim);
 });
 
 // Derive 1D/2D/3D views from the same 3D reduction
@@ -80,9 +87,8 @@ function handleAnalogyUpdate(index: number, field: 'from' | 'to' | 'apply', valu
 }
 
 function cycleDimensions() {
-  if (dimensions.value === 3) dimensions.value = 1;
-  else if (dimensions.value === 1) dimensions.value = 2;
-  else dimensions.value = 3;
+  const cycle: Record<number, 1 | 2 | 3 | 4 | 5 | 50> = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 50, 50: 1 };
+  dimensions.value = cycle[dimensions.value] ?? 1;
 }
 
 function handleResize() {
@@ -124,6 +130,7 @@ onUnmounted(() => {
           :height="viewportHeight"
           :projection-mode="projectionMode"
           :original-embeddings="embeddings"
+          :reduced-embeddings-nd="reducedEmbeddingsND"
           :show-arrows="showArrows"
           :sphere-count="sphereCount"
           :analogies="visibleAnalogies"
