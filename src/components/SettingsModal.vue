@@ -12,6 +12,7 @@ const props = defineProps<{
   showArrows: boolean;
   sphereCount: SphereCount;
   sphereAnchor: SphereAnchor;
+  showResultLines: boolean;
   analogyDisplayMode: AnalogyDisplayMode;
   showAllAnalogies: boolean;
 }>();
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   'update:showArrows': [show: boolean];
   'update:sphereCount': [count: SphereCount];
   'update:sphereAnchor': [anchor: SphereAnchor];
+  'update:showResultLines': [show: boolean];
   'update:analogyDisplayMode': [mode: AnalogyDisplayMode];
   'update:showAllAnalogies': [show: boolean];
 }>();
@@ -63,6 +65,10 @@ function cycleSphereCount() {
 function cycleSphereAnchor() {
   if (props.sphereAnchor === 'result') emit('update:sphereAnchor', 'token');
   else emit('update:sphereAnchor', 'result');
+}
+
+function toggleResultLines() {
+  emit('update:showResultLines', !props.showResultLines);
 }
 
 function cycleAnalogyDisplayMode() {
@@ -139,6 +145,17 @@ function getAnalogyDisplayLabel(mode: AnalogyDisplayMode): string {
             @click="cycleSphereAnchor"
           >
             {{ sphereAnchor === 'result' ? 'Result' : 'Token' }}
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Result Lines</span>
+          <button
+            class="toggle-switch"
+            :class="{ active: showResultLines }"
+            @click="toggleResultLines"
+          >
+            {{ showResultLines ? 'ON' : 'OFF' }}
           </button>
         </div>
 

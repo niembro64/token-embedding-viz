@@ -17,6 +17,7 @@ const projectionMode = ref<ProjectionMode>('pca');
 const showArrows = ref(true);
 const sphereCount = ref<SphereCount>(5);
 const sphereAnchor = ref<SphereAnchor>('result');
+const showResultLines = ref(false);
 const analogyDisplayMode = ref<AnalogyDisplayMode>(defaultAnalogyDisplayMode);
 const activeAnalogies = ref<AnalogyConfig[]>(defaultAnalogies.map(a => ({ ...a })));
 const showAllAnalogies = ref(false);
@@ -135,6 +136,7 @@ onUnmounted(() => {
           :show-arrows="showArrows"
           :sphere-count="sphereCount"
           :sphere-anchor="sphereAnchor"
+          :show-result-lines="showResultLines"
           :analogies="visibleAnalogies"
         />
       </div>
@@ -156,6 +158,7 @@ onUnmounted(() => {
         :show-arrows="showArrows"
         :sphere-count="sphereCount"
         :sphere-anchor="sphereAnchor"
+        :show-result-lines="showResultLines"
         :analogy-display-mode="analogyDisplayMode"
         :show-all-analogies="showAllAnalogies"
         @close="toggleSettings"
@@ -163,6 +166,7 @@ onUnmounted(() => {
         @update:show-arrows="showArrows = $event"
         @update:sphere-count="sphereCount = $event"
         @update:sphere-anchor="sphereAnchor = $event"
+        @update:show-result-lines="showResultLines = $event"
         @update:analogy-display-mode="analogyDisplayMode = $event"
         @update:show-all-analogies="showAllAnalogies = $event"
       />

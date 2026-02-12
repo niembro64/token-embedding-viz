@@ -34,6 +34,7 @@ const props = defineProps<{
   showArrows: boolean;
   sphereCount: SphereCount;
   sphereAnchor: SphereAnchor;
+  showResultLines: boolean;
   analogies: AnalogyConfig[];
 }>();
 
@@ -86,7 +87,8 @@ interface AnalogyState {
   fromToArrow: THREE.Group | null;
   applyArrow: THREE.Group | null;
   questionMark: THREE.Sprite | null;
-  spheres: THREE.Mesh[]; // Array of spheres (up to 5)
+  spheres: THREE.Mesh[];
+  resultLines: THREE.Line[];
 }
 
 let analogyStates: AnalogyState[] = [];
@@ -446,6 +448,9 @@ function updateVisibility() {
     state.spheres.forEach((sphere, i) => {
       sphere.visible = !isNonVisual && props.sphereCount > i;
     });
+    state.resultLines.forEach((line) => {
+      line.visible = !isNonVisual && props.showResultLines;
+    });
   }
 
   // Toggle "No Visual" message
@@ -521,6 +526,7 @@ function initializePoints() {
       applyArrow: null,
       questionMark: null,
       spheres: [],
+      resultLines: [],
     };
 
     // Skip if any token not found
@@ -566,6 +572,22 @@ function initializePoints() {
       state.spheres.push(sphereMesh);
     }
 
+    // Create result lines from tip to each nearest token (dynamic geometry)
+    for (let i = 0; i < resultCount; i++) {
+      const lineGeom = new THREE.BufferGeometry();
+      lineGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      const lineOpacity = analogyColorOpacity * getResultOpacity(i);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: colorNum,
+        transparent: true,
+        opacity: lineOpacity,
+      });
+      const line = new THREE.Line(lineGeom, lineMat);
+      line.visible = props.showResultLines;
+      scene.add(line);
+      state.resultLines.push(line);
+    }
+
     // Create question mark at apply arrow tip (render on top of sphere)
     state.questionMark = createTextSprite('?', analogy.color, true);
     state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
@@ -584,6 +606,7 @@ function cleanupAnalogies() {
     if (state.applyArrow) { scene.remove(state.applyArrow); }
     if (state.questionMark) { scene.remove(state.questionMark); }
     for (const s of state.spheres) { scene.remove(s); }
+    for (const l of state.resultLines) { scene.remove(l); }
   }
   analogyStates = [];
 }
@@ -607,6 +630,7 @@ function initializeAnalogies() {
       applyArrow: null,
       questionMark: null,
       spheres: [],
+      resultLines: [],
     };
 
     if (fromIndex === -1 || toIndex === -1 || applyIndex === -1) {
@@ -644,6 +668,21 @@ function initializeAnalogies() {
       sphereMesh.visible = props.sphereCount > i;
       scene.add(sphereMesh);
       state.spheres.push(sphereMesh);
+    }
+
+    for (let i = 0; i < resultCount; i++) {
+      const lineGeom = new THREE.BufferGeometry();
+      lineGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      const lineOpacity = analogyColorOpacity * getResultOpacity(i);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: colorNum,
+        transparent: true,
+        opacity: lineOpacity,
+      });
+      const line = new THREE.Line(lineGeom, lineMat);
+      line.visible = props.showResultLines;
+      scene.add(line);
+      state.resultLines.push(line);
     }
 
     state.questionMark = createTextSprite('?', analogy.color, true);
@@ -854,6 +893,20 @@ function animate() {
       sphere.scale.setScalar(dist);
     });
 
+    // Update result line endpoints (tipPos → token position)
+    state.resultLines.forEach((line, i) => {
+      const tokenPos = nearestWithDistances[i]?.position;
+      if (!tokenPos) return;
+      const positions = line.geometry.attributes.position.array as Float32Array;
+      positions[0] = tipPos.x;
+      positions[1] = tipPos.y;
+      positions[2] = tipPos.z;
+      positions[3] = tokenPos.x;
+      positions[4] = tokenPos.y;
+      positions[5] = tokenPos.z;
+      line.geometry.attributes.position.needsUpdate = true;
+    });
+
     // Track the nearest tokens for the legend
     const nearestTokens = nearestWithDistances.map(d => d.token);
     newResults.push({
@@ -946,9 +999,9 @@ watch(
 
 watch([() => props.width, () => props.height], handleResize);
 
-// Watch for showArrows and sphereCount changes
+// Watch for showArrows, sphereCount, and showResultLines changes
 watch(
-  [() => props.showArrows, () => props.sphereCount],
+  [() => props.showArrows, () => props.sphereCount, () => props.showResultLines],
   () => {
     updateVisibility();
   }
