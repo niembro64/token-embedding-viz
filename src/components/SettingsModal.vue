@@ -3,6 +3,7 @@ import type { AnalogyDisplayMode } from '../config/config';
 
 export type ProjectionMode = 'pca' | 'naive';
 export type SphereCount = 0 | 1 | 5;
+export type SphereAnchor = 'result' | 'token';
 
 const props = defineProps<{
   visible: boolean;
@@ -10,6 +11,7 @@ const props = defineProps<{
   projectionMode: ProjectionMode;
   showArrows: boolean;
   sphereCount: SphereCount;
+  sphereAnchor: SphereAnchor;
   analogyDisplayMode: AnalogyDisplayMode;
   showAllAnalogies: boolean;
 }>();
@@ -19,6 +21,7 @@ const emit = defineEmits<{
   'update:projectionMode': [mode: ProjectionMode];
   'update:showArrows': [show: boolean];
   'update:sphereCount': [count: SphereCount];
+  'update:sphereAnchor': [anchor: SphereAnchor];
   'update:analogyDisplayMode': [mode: AnalogyDisplayMode];
   'update:showAllAnalogies': [show: boolean];
 }>();
@@ -55,6 +58,11 @@ function cycleSphereCount() {
   if (current === 0) emit('update:sphereCount', 1);
   else if (current === 1) emit('update:sphereCount', 5);
   else emit('update:sphereCount', 0);
+}
+
+function cycleSphereAnchor() {
+  if (props.sphereAnchor === 'result') emit('update:sphereAnchor', 'token');
+  else emit('update:sphereAnchor', 'result');
 }
 
 function cycleAnalogyDisplayMode() {
@@ -121,6 +129,16 @@ function getAnalogyDisplayLabel(mode: AnalogyDisplayMode): string {
             @click="cycleSphereCount"
           >
             {{ sphereCount === 0 ? 'None' : sphereCount === 1 ? '1 Sphere' : '5 Spheres' }}
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Sphere Center</span>
+          <button
+            class="cycle-btn"
+            @click="cycleSphereAnchor"
+          >
+            {{ sphereAnchor === 'result' ? 'Result' : 'Token' }}
           </button>
         </div>
 

@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ReducedEmbedding3D, ReducedEmbeddingND, TokenEmbedding } from '../types/types';
-import type { ProjectionMode, SphereCount } from './SettingsModal.vue';
+import type { ProjectionMode, SphereCount, SphereAnchor } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
 import {
   colors,
@@ -33,6 +33,7 @@ const props = defineProps<{
   reducedEmbeddingsNd: ReducedEmbeddingND[];
   showArrows: boolean;
   sphereCount: SphereCount;
+  sphereAnchor: SphereAnchor;
   analogies: AnalogyConfig[];
 }>();
 
@@ -91,14 +92,14 @@ interface AnalogyState {
 let analogyStates: AnalogyState[] = [];
 
 // Helper to find the nearest tokens and their distances to a position (returns top N)
-function findNearestTokensWithDistances(position: THREE.Vector3, count: number = 5): { token: string; distance: number }[] {
-  const distances: { token: string; distance: number }[] = [];
+function findNearestTokensWithDistances(position: THREE.Vector3, count: number = 5): { token: string; distance: number; position: THREE.Vector3 }[] {
+  const distances: { token: string; distance: number; position: THREE.Vector3 }[] = [];
   for (let i = 0; i < pointStates.length; i++) {
     const state = pointStates[i];
     if (!state) continue;
     const distance = position.distanceTo(state.current);
     const token = props.points[i]?.token || '?';
-    distances.push({ token, distance });
+    distances.push({ token, distance, position: state.current });
   }
   distances.sort((a, b) => a.distance - b.distance);
   return distances.slice(0, count);
@@ -842,10 +843,14 @@ function animate() {
     // Get nearest tokens with distances for both spheres and legend
     const nearestWithDistances = findNearestTokensWithDistances(tipPos, resultCount);
 
-    // Position and scale all spheres at apply arrow tip
+    // Position and scale spheres based on anchor mode
     state.spheres.forEach((sphere, i) => {
-      sphere.position.copy(tipPos);
       const dist = nearestWithDistances[i]?.distance ?? 0;
+      if (props.sphereAnchor === 'token') {
+        sphere.position.copy(nearestWithDistances[i]?.position ?? tipPos);
+      } else {
+        sphere.position.copy(tipPos);
+      }
       sphere.scale.setScalar(dist);
     });
 

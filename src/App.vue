@@ -4,7 +4,7 @@ import EmbeddingCanvas3D from './components/EmbeddingCanvas3D.vue';
 import BottomBar from './components/BottomBar.vue';
 import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
-import SettingsModal, { type ProjectionMode, type SphereCount } from './components/SettingsModal.vue';
+import SettingsModal, { type ProjectionMode, type SphereCount, type SphereAnchor } from './components/SettingsModal.vue';
 import { defaultAnalogyDisplayMode, defaultAnalogies, type AnalogyDisplayMode, type AnalogyConfig } from './config/config';
 import { reduceToPCA3D, reduceToNaive3D, reduceToPCA_ND, reduceToNaiveND } from './utils/pca';
 import type { TokenEmbedding, ReducedEmbeddingND } from './types/types';
@@ -16,6 +16,7 @@ const dimensions = ref<1 | 2 | 3 | 4 | 5 | 50>(3);
 const projectionMode = ref<ProjectionMode>('pca');
 const showArrows = ref(true);
 const sphereCount = ref<SphereCount>(5);
+const sphereAnchor = ref<SphereAnchor>('result');
 const analogyDisplayMode = ref<AnalogyDisplayMode>(defaultAnalogyDisplayMode);
 const activeAnalogies = ref<AnalogyConfig[]>(defaultAnalogies.map(a => ({ ...a })));
 const showAllAnalogies = ref(false);
@@ -133,6 +134,7 @@ onUnmounted(() => {
           :reduced-embeddings-nd="reducedEmbeddingsND"
           :show-arrows="showArrows"
           :sphere-count="sphereCount"
+          :sphere-anchor="sphereAnchor"
           :analogies="visibleAnalogies"
         />
       </div>
@@ -153,12 +155,14 @@ onUnmounted(() => {
         :projection-mode="projectionMode"
         :show-arrows="showArrows"
         :sphere-count="sphereCount"
+        :sphere-anchor="sphereAnchor"
         :analogy-display-mode="analogyDisplayMode"
         :show-all-analogies="showAllAnalogies"
         @close="toggleSettings"
         @update:projection-mode="projectionMode = $event"
         @update:show-arrows="showArrows = $event"
         @update:sphere-count="sphereCount = $event"
+        @update:sphere-anchor="sphereAnchor = $event"
         @update:analogy-display-mode="analogyDisplayMode = $event"
         @update:show-all-analogies="showAllAnalogies = $event"
       />
