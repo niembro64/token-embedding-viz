@@ -169,6 +169,38 @@ function computeNDAnalogies(): typeof analogyResults.value {
 }
 
 // Create a custom thick arrow (cylinder stem + cone head)
+// Dash pattern constants
+const DASH_LENGTH = 0.2;
+const GAP_LENGTH = 0.15;
+
+function buildStemGroup(
+  stemLength: number,
+  stemRadius: number,
+  material: THREE.MeshBasicMaterial,
+  dashed: boolean
+): THREE.Group {
+  const stemGroup = new THREE.Group();
+  if (!dashed) {
+    const geom = new THREE.CylinderGeometry(stemRadius, stemRadius, stemLength, 8);
+    const mesh = new THREE.Mesh(geom, material);
+    mesh.position.y = stemLength / 2;
+    stemGroup.add(mesh);
+  } else {
+    const segmentStep = DASH_LENGTH + GAP_LENGTH;
+    let y = 0;
+    while (y < stemLength) {
+      const dashLen = Math.min(DASH_LENGTH, stemLength - y);
+      if (dashLen <= 0) break;
+      const geom = new THREE.CylinderGeometry(stemRadius, stemRadius, dashLen, 8);
+      const mesh = new THREE.Mesh(geom, material);
+      mesh.position.y = y + dashLen / 2;
+      stemGroup.add(mesh);
+      y += segmentStep;
+    }
+  }
+  return stemGroup;
+}
+
 function createThickArrow(
   direction: THREE.Vector3,
   origin: THREE.Vector3,
@@ -177,19 +209,19 @@ function createThickArrow(
   stemRadius: number = arrow.stemRadius,
   headLength: number = arrow.headLength,
   headRadius: number = arrow.headRadius,
-  opacity: number = 1.0
+  opacity: number = 1.0,
+  dashed: boolean = false
 ): THREE.Group {
   const group = new THREE.Group();
+  group.userData.dashed = dashed;
 
   const stemLength = Math.max(0.01, length - headLength);
   const transparent = opacity < 1.0;
-
-  // Stem (cylinder)
-  const stemGeometry = new THREE.CylinderGeometry(stemRadius, stemRadius, stemLength, 8);
   const stemMaterial = new THREE.MeshBasicMaterial({ color, transparent, opacity });
-  const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-  stem.position.y = stemLength / 2;
-  group.add(stem);
+
+  // Stem group (solid or dashed)
+  const stemGroup = buildStemGroup(stemLength, stemRadius, stemMaterial, dashed);
+  group.add(stemGroup);
 
   // Head (cone)
   const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8);
@@ -214,12 +246,36 @@ function updateThickArrow(
   headLength: number = arrow.headLength
 ) {
   const stemLength = Math.max(0.01, length - headLength);
+  const dashed = arrowGroup.userData.dashed as boolean;
 
-  // Update stem
-  const stem = arrowGroup.children[0] as THREE.Mesh;
-  stem.geometry.dispose();
-  stem.geometry = new THREE.CylinderGeometry(arrow.stemRadius, arrow.stemRadius, stemLength, 8);
-  stem.position.y = stemLength / 2;
+  // Rebuild stem group
+  const oldStemGroup = arrowGroup.children[0] as THREE.Group;
+  const stemMaterial = (oldStemGroup.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+  // Dispose old geometries
+  for (const child of oldStemGroup.children) {
+    (child as THREE.Mesh).geometry.dispose();
+  }
+  oldStemGroup.clear();
+
+  // Repopulate stem group
+  if (!dashed) {
+    const geom = new THREE.CylinderGeometry(arrow.stemRadius, arrow.stemRadius, stemLength, 8);
+    const mesh = new THREE.Mesh(geom, stemMaterial);
+    mesh.position.y = stemLength / 2;
+    oldStemGroup.add(mesh);
+  } else {
+    const segmentStep = DASH_LENGTH + GAP_LENGTH;
+    let y = 0;
+    while (y < stemLength) {
+      const dashLen = Math.min(DASH_LENGTH, stemLength - y);
+      if (dashLen <= 0) break;
+      const geom = new THREE.CylinderGeometry(arrow.stemRadius, arrow.stemRadius, dashLen, 8);
+      const mesh = new THREE.Mesh(geom, stemMaterial);
+      mesh.position.y = y + dashLen / 2;
+      oldStemGroup.add(mesh);
+      y += segmentStep;
+    }
+  }
 
   // Update head position
   const head = arrowGroup.children[1] as THREE.Mesh;
@@ -555,8 +611,9 @@ function initializePoints() {
     state.fromToArrow.visible = props.showArrows;
     scene.add(state.fromToArrow);
 
-    // Create arrow from "apply" using same difference
-    state.applyArrow = createThickArrow(difference, applyPos, length, colorNum);
+    // Create arrow from "apply" using same difference (dashed)
+    state.applyArrow = createThickArrow(difference, applyPos, length, colorNum,
+      arrow.stemRadius, arrow.headLength, arrow.headRadius, 1.0, true);
     state.applyArrow.visible = props.showArrows;
     scene.add(state.applyArrow);
 
@@ -574,12 +631,12 @@ function initializePoints() {
       state.spheres.push(sphereMesh);
     }
 
-    // Create result arrows from tip to each nearest token
+    // Create result arrows from tip to each nearest token (dashed)
     for (let i = 0; i < resultCount; i++) {
       const lineOpacity = analogyColorOpacity * getResultOpacity(i);
       const dir = new THREE.Vector3(0, 1, 0);
       const resultArrow = createThickArrow(dir, new THREE.Vector3(), 0.01, colorNum,
-        arrow.stemRadius, arrow.headLength, arrow.headRadius, lineOpacity);
+        arrow.stemRadius, arrow.headLength, arrow.headRadius, lineOpacity, true);
       resultArrow.visible = props.showResultLines;
       scene.add(resultArrow);
       state.resultLines.push(resultArrow);
@@ -652,7 +709,8 @@ function initializeAnalogies() {
     state.fromToArrow.visible = props.showArrows;
     scene.add(state.fromToArrow);
 
-    state.applyArrow = createThickArrow(difference, applyPos, length, colorNum);
+    state.applyArrow = createThickArrow(difference, applyPos, length, colorNum,
+      arrow.stemRadius, arrow.headLength, arrow.headRadius, 1.0, true);
     state.applyArrow.visible = props.showArrows;
     scene.add(state.applyArrow);
 
@@ -668,18 +726,13 @@ function initializeAnalogies() {
     }
 
     for (let i = 0; i < resultCount; i++) {
-      const lineGeom = new THREE.BufferGeometry();
-      lineGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
       const lineOpacity = analogyColorOpacity * getResultOpacity(i);
-      const lineMat = new THREE.LineBasicMaterial({
-        color: colorNum,
-        transparent: true,
-        opacity: lineOpacity,
-      });
-      const line = new THREE.Line(lineGeom, lineMat);
-      line.visible = props.showResultLines;
-      scene.add(line);
-      state.resultLines.push(line);
+      const dir = new THREE.Vector3(0, 1, 0);
+      const resultArrow = createThickArrow(dir, new THREE.Vector3(), 0.01, colorNum,
+        arrow.stemRadius, arrow.headLength, arrow.headRadius, lineOpacity, true);
+      resultArrow.visible = props.showResultLines;
+      scene.add(resultArrow);
+      state.resultLines.push(resultArrow);
     }
 
     state.questionMark = createTextSprite('?', analogy.color, true);
