@@ -33,6 +33,8 @@ function onInput(index: number, field: 'from' | 'to' | 'apply', event: Event) {
 function isValidToken(value: string): boolean {
   return tokenSet.value.has(value);
 }
+
+const isSingle = computed(() => props.analogyResults.length === 1);
 </script>
 
 <template>
@@ -47,7 +49,7 @@ function isValidToken(value: string): boolean {
       <h2>Analogies</h2>
 
       <div class="analogy-section">
-        <div class="analogy-grid">
+        <div class="analogy-grid" :class="{ single: isSingle }">
           <div
             v-for="(result, index) in analogyResults"
             :key="index"
@@ -213,11 +215,44 @@ h2 {
   border-radius: 4px;
   font-size: 14px;
   color: #fff;
+  max-width: none;
+  overflow: visible;
 }
 
 .analogy-pair .token.result:first-child {
   font-size: 16px;
   font-weight: 700;
+}
+
+/* Single analogy — scale up to fill the space */
+.analogy-grid.single .analogy-column {
+  width: 200px;
+  gap: 6px;
+  padding: 20px 16px;
+}
+
+.analogy-grid.single .token-input {
+  font-size: 24px;
+  max-width: 200px;
+  width: 200px;
+}
+
+.analogy-grid.single .connector {
+  font-size: 16px;
+}
+
+.analogy-grid.single .analogy-pair .token.result {
+  font-size: 20px;
+  padding: 4px 10px;
+}
+
+.analogy-grid.single .analogy-pair .token.result:first-child {
+  font-size: 24px;
+}
+
+.analogy-grid.single .results-list {
+  gap: 4px;
+  margin-top: 8px;
 }
 
 .close-btn {
