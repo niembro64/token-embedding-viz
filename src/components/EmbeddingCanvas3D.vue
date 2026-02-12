@@ -2,9 +2,6 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import type { ReducedEmbedding3D, ReducedEmbeddingND, TokenEmbedding } from '../types/types';
 import type { ProjectionMode, SphereCount, SphereAnchor } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
@@ -91,7 +88,7 @@ interface AnalogyState {
   applyArrow: THREE.Group | null;
   questionMark: THREE.Sprite | null;
   spheres: THREE.Mesh[];
-  resultLines: Line2[];
+  resultLines: THREE.Group[];
 }
 
 let analogyStates: AnalogyState[] = [];
@@ -179,22 +176,24 @@ function createThickArrow(
   color: number,
   stemRadius: number = arrow.stemRadius,
   headLength: number = arrow.headLength,
-  headRadius: number = arrow.headRadius
+  headRadius: number = arrow.headRadius,
+  opacity: number = 1.0
 ): THREE.Group {
   const group = new THREE.Group();
 
   const stemLength = Math.max(0.01, length - headLength);
+  const transparent = opacity < 1.0;
 
   // Stem (cylinder)
   const stemGeometry = new THREE.CylinderGeometry(stemRadius, stemRadius, stemLength, 8);
-  const stemMaterial = new THREE.MeshBasicMaterial({ color });
+  const stemMaterial = new THREE.MeshBasicMaterial({ color, transparent, opacity });
   const stem = new THREE.Mesh(stemGeometry, stemMaterial);
   stem.position.y = stemLength / 2;
   group.add(stem);
 
   // Head (cone)
   const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8);
-  const headMaterial = new THREE.MeshBasicMaterial({ color });
+  const headMaterial = new THREE.MeshBasicMaterial({ color, transparent, opacity });
   const head = new THREE.Mesh(headGeometry, headMaterial);
   head.position.y = stemLength + headLength / 2;
   group.add(head);
@@ -575,22 +574,15 @@ function initializePoints() {
       state.spheres.push(sphereMesh);
     }
 
-    // Create result lines from tip to each nearest token (fat Line2)
+    // Create result arrows from tip to each nearest token
     for (let i = 0; i < resultCount; i++) {
-      const lineGeom = new LineGeometry();
-      lineGeom.setPositions([0, 0, 0, 0, 0, 0]);
       const lineOpacity = analogyColorOpacity * getResultOpacity(i);
-      const lineMat = new LineMaterial({
-        color: colorNum,
-        linewidth: 3,
-        transparent: true,
-        opacity: lineOpacity,
-        resolution: new THREE.Vector2(props.width, props.height),
-      });
-      const line = new Line2(lineGeom, lineMat);
-      line.visible = props.showResultLines;
-      scene.add(line);
-      state.resultLines.push(line);
+      const dir = new THREE.Vector3(0, 1, 0);
+      const resultArrow = createThickArrow(dir, new THREE.Vector3(), 0.01, colorNum,
+        arrow.stemRadius, arrow.headLength, arrow.headRadius, lineOpacity);
+      resultArrow.visible = props.showResultLines;
+      scene.add(resultArrow);
+      state.resultLines.push(resultArrow);
     }
 
     // Create question mark at apply arrow tip (render on top of sphere)
@@ -779,12 +771,6 @@ function handleResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(props.width, props.height);
 
-  // Update Line2 material resolution
-  for (const state of analogyStates) {
-    for (const line of state.resultLines) {
-      (line.material as LineMaterial).resolution.set(props.width, props.height);
-    }
-  }
 }
 
 function onMouseMove(event: MouseEvent) {
@@ -905,14 +891,14 @@ function animate() {
       sphere.scale.setScalar(dist);
     });
 
-    // Update result line endpoints (tipPos → token position)
-    state.resultLines.forEach((line, i) => {
+    // Update result arrows (tipPos → token position)
+    state.resultLines.forEach((resultArrow, i) => {
       const tokenPos = nearestWithDistances[i]?.position;
       if (!tokenPos) return;
-      (line.geometry as LineGeometry).setPositions([
-        tipPos.x, tipPos.y, tipPos.z,
-        tokenPos.x, tokenPos.y, tokenPos.z,
-      ]);
+      const dir = new THREE.Vector3().subVectors(tokenPos, tipPos);
+      const len = dir.length();
+      dir.normalize();
+      updateThickArrow(resultArrow, dir, tipPos, len);
     });
 
     // Track the nearest tokens for the legend
