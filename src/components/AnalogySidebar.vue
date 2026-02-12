@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { getResultOpacity, analogyColorOpacity, hexToRgba, analogyGroupOpacity, type AnalogyDisplayMode } from '../config/config';
 
 export interface AnalogyResult {
@@ -9,16 +10,29 @@ export interface AnalogyResult {
   color: string;
 }
 
-defineProps<{
+const props = defineProps<{
   visible: boolean;
   isMobile: boolean;
   analogyResults: AnalogyResult[];
   displayMode: AnalogyDisplayMode;
+  availableTokens: string[];
 }>();
 
 const emit = defineEmits<{
   close: [];
+  'update:analogy': [index: number, field: 'from' | 'to' | 'apply', value: string];
 }>();
+
+const tokenSet = computed(() => new Set(props.availableTokens));
+
+function onInput(index: number, field: 'from' | 'to' | 'apply', event: Event) {
+  const value = (event.target as HTMLInputElement).value.trim().toLowerCase();
+  emit('update:analogy', index, field, value);
+}
+
+function isValidToken(value: string): boolean {
+  return tokenSet.value.has(value);
+}
 </script>
 
 <template>
@@ -41,13 +55,37 @@ const emit = defineEmits<{
             :style="{ backgroundColor: hexToRgba(result.color, analogyGroupOpacity), border: '1px solid ' + hexToRgba(result.color, analogyGroupOpacity * 3) }"
           >
             <div class="analogy-pair">
-              <span class="token">{{ result.from }}</span>
+              <input
+                class="token-input"
+                :class="{ invalid: !isValidToken(result.from) }"
+                :value="result.from"
+
+
+                spellcheck="false"
+                @input="onInput(index, 'from', $event)"
+              />
               <span class="connector" :style="{ color: result.color }">{{ displayMode === 'arrow' ? '▼' : displayMode === 'colon' ? ':' : 'is to' }}</span>
-              <span class="token">{{ result.to }}</span>
+              <input
+                class="token-input"
+                :class="{ invalid: !isValidToken(result.to) }"
+                :value="result.to"
+
+
+                spellcheck="false"
+                @input="onInput(index, 'to', $event)"
+              />
             </div>
             <span class="connector" :style="{ color: result.color }">{{ displayMode === 'arrow' ? 'as' : displayMode === 'colon' ? '::' : 'as' }}</span>
             <div class="analogy-pair">
-              <span class="token">{{ result.apply }}</span>
+              <input
+                class="token-input"
+                :class="{ invalid: !isValidToken(result.apply) }"
+                :value="result.apply"
+
+
+                spellcheck="false"
+                @input="onInput(index, 'apply', $event)"
+              />
               <span class="connector" :style="{ color: result.color }">{{ displayMode === 'arrow' ? '▼' : displayMode === 'colon' ? ':' : 'is to' }}</span>
               <div class="results-list">
                 <span
@@ -136,6 +174,24 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #e0e0e0;
+}
+
+.token-input {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 600;
+  max-width: 90px;
+  width: 90px;
+  color: #e0e0e0;
+  background: transparent;
+  border: none;
+  text-align: center;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.token-input.invalid {
+  color: #888;
 }
 
 .connector {

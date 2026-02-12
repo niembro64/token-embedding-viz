@@ -7,7 +7,6 @@ import type { ProjectionMode, SphereCount } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
 import {
   colors,
-  analogies,
   resultCount,
   getResultOpacity,
   colorToHex,
@@ -21,6 +20,7 @@ import {
   axis,
   textSprite,
   misc,
+  type AnalogyConfig,
 } from '../config/config';
 
 const props = defineProps<{
@@ -32,6 +32,7 @@ const props = defineProps<{
   originalEmbeddings: TokenEmbedding[];
   showArrows: boolean;
   sphereCount: SphereCount;
+  analogies: AnalogyConfig[];
 }>();
 
 // Scale multipliers for each dimension (from config)
@@ -124,7 +125,7 @@ function findNearestTokensFullEmbedding(targetEmbedding: number[], count: number
 function computeFullEmbeddingAnalogies(): typeof analogyResults.value {
   const results: typeof analogyResults.value = [];
 
-  for (const analogy of analogies) {
+  for (const analogy of props.analogies) {
     const fromEmb = props.originalEmbeddings.find(e => e.token === analogy.from);
     const toEmb = props.originalEmbeddings.find(e => e.token === analogy.to);
     const applyEmb = props.originalEmbeddings.find(e => e.token === analogy.apply);
@@ -486,7 +487,7 @@ function initializePoints() {
   pointsGroup.add(pointsMesh);
 
   // Initialize analogies
-  analogyStates = analogies.map((analogy) => {
+  analogyStates = props.analogies.map((analogy) => {
     const fromIndex = normalizedPoints.findIndex((p) => p.token === analogy.from);
     const toIndex = normalizedPoints.findIndex((p) => p.token === analogy.to);
     const applyIndex = normalizedPoints.findIndex((p) => p.token === analogy.apply);
@@ -545,6 +546,85 @@ function initializePoints() {
     }
 
     // Create question mark at apply arrow tip (render on top of sphere)
+    state.questionMark = createTextSprite('?', analogy.color, true);
+    state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
+    state.questionMark.renderOrder = 1;
+    (state.questionMark.material as THREE.SpriteMaterial).depthTest = false;
+    state.questionMark.visible = props.showArrows;
+    scene.add(state.questionMark);
+
+    return state;
+  });
+}
+
+function cleanupAnalogies() {
+  for (const state of analogyStates) {
+    if (state.fromToArrow) { scene.remove(state.fromToArrow); }
+    if (state.applyArrow) { scene.remove(state.applyArrow); }
+    if (state.questionMark) { scene.remove(state.questionMark); }
+    for (const s of state.spheres) { scene.remove(s); }
+  }
+  analogyStates = [];
+}
+
+function initializeAnalogies() {
+  if (!scene || pointStates.length === 0) return;
+
+  const normalizedPoints = normalize3D(props.points, scales.pointCloud);
+  const initialScale = scaleByDimension[props.dimensions] ?? 1.0;
+
+  analogyStates = props.analogies.map((analogy) => {
+    const fromIndex = normalizedPoints.findIndex((p) => p.token === analogy.from);
+    const toIndex = normalizedPoints.findIndex((p) => p.token === analogy.to);
+    const applyIndex = normalizedPoints.findIndex((p) => p.token === analogy.apply);
+
+    const state: AnalogyState = {
+      fromIndex,
+      toIndex,
+      applyIndex,
+      fromToArrow: null,
+      applyArrow: null,
+      questionMark: null,
+      spheres: [],
+    };
+
+    if (fromIndex === -1 || toIndex === -1 || applyIndex === -1) {
+      return state;
+    }
+
+    const fromState = pointStates[fromIndex];
+    const toState = pointStates[toIndex];
+    const applyState = pointStates[applyIndex];
+    if (!fromState || !toState || !applyState) return state;
+
+    const fromPos = fromState.current;
+    const toPos = toState.current;
+    const applyPos = applyState.current;
+    const difference = new THREE.Vector3().subVectors(toPos, fromPos);
+    const length = difference.length();
+    difference.normalize();
+
+    const colorNum = colorToHex(analogy.color);
+
+    state.fromToArrow = createThickArrow(difference, fromPos, length, colorNum);
+    state.fromToArrow.visible = props.showArrows;
+    scene.add(state.fromToArrow);
+
+    state.applyArrow = createThickArrow(difference, applyPos, length, colorNum);
+    state.applyArrow.visible = props.showArrows;
+    scene.add(state.applyArrow);
+
+    for (let i = 0; i < resultCount; i++) {
+      const sphereGeometry = new THREE.SphereGeometry(1, sphere.segments, sphere.segments);
+      const sphereOpacity = sphere.baseOpacity * analogyColorOpacity * getResultOpacity(i);
+      const sphereMaterial = createFresnelSphereMaterial(colorNum, sphereOpacity);
+      const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      sphereMesh.renderOrder = 0;
+      sphereMesh.visible = props.sphereCount > i;
+      scene.add(sphereMesh);
+      state.spheres.push(sphereMesh);
+    }
+
     state.questionMark = createTextSprite('?', analogy.color, true);
     state.questionMark.scale.set(baseScale.x * 2 * initialScale, baseScale.y * 2 * initialScale, 1);
     state.questionMark.renderOrder = 1;
@@ -695,7 +775,7 @@ function animate() {
   const newResults: typeof analogyResults.value = [];
 
   analogyStates.forEach((state, index) => {
-    const analogy = analogies[index];
+    const analogy = props.analogies[index];
     if (!analogy) return;
 
     if (state.fromIndex === -1 || state.toIndex === -1 || state.applyIndex === -1) {
@@ -836,6 +916,21 @@ watch(
   () => {
     updateVisibility();
   }
+);
+
+// Watch for analogies prop changes (word edits or count changes)
+watch(
+  () => props.analogies,
+  () => {
+    cleanupAnalogies();
+    if (props.projectionMode === 'embedding_full') {
+      analogyResults.value = computeFullEmbeddingAnalogies();
+    } else if (pointStates.length > 0) {
+      initializeAnalogies();
+      updateVisibility();
+    }
+  },
+  { deep: true }
 );
 </script>
 

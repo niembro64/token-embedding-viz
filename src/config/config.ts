@@ -41,7 +41,7 @@ export interface AnalogyConfig {
 }
 
 // Configure analogies here (colors balanced for equal perceived brightness)
-export const analogies: AnalogyConfig[] = [
+export const defaultAnalogies: AnalogyConfig[] = [
   { from: 'italy', to: 'pasta', apply: 'japan', color: '#60a5fa' }, // blue
   { from: 'boy', to: 'girl', apply: 'man', color: '#f87171' }, // red
   { from: 'run', to: 'ran', apply: 'walk', color: '#fbbf24' }, // yellow

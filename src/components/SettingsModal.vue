@@ -11,6 +11,7 @@ const props = defineProps<{
   showArrows: boolean;
   sphereCount: SphereCount;
   analogyDisplayMode: AnalogyDisplayMode;
+  showAllAnalogies: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   'update:showArrows': [show: boolean];
   'update:sphereCount': [count: SphereCount];
   'update:analogyDisplayMode': [mode: AnalogyDisplayMode];
+  'update:showAllAnalogies': [show: boolean];
 }>();
 
 function cycleProjectionMode() {
@@ -46,6 +48,10 @@ function getProjectionModeDesc(mode: ProjectionMode): string {
 
 function toggleArrows() {
   emit('update:showArrows', !props.showArrows);
+}
+
+function toggleShowAllAnalogies() {
+  emit('update:showAllAnalogies', !props.showAllAnalogies);
 }
 
 function cycleSphereCount() {
@@ -129,6 +135,17 @@ function getAnalogyDisplayLabel(mode: AnalogyDisplayMode): string {
             @click="cycleAnalogyDisplayMode"
           >
             {{ getAnalogyDisplayLabel(analogyDisplayMode) }}
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Show All Analogies</span>
+          <button
+            class="toggle-switch"
+            :class="{ active: showAllAnalogies }"
+            @click="toggleShowAllAnalogies"
+          >
+            {{ showAllAnalogies ? 'ON' : 'OFF' }}
           </button>
         </div>
       </div>

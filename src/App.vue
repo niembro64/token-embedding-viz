@@ -5,7 +5,7 @@ import BottomBar from './components/BottomBar.vue';
 import AnalogySidebar from './components/AnalogySidebar.vue';
 import LoadingState from './components/LoadingState.vue';
 import SettingsModal, { type ProjectionMode, type SphereCount } from './components/SettingsModal.vue';
-import { defaultAnalogyDisplayMode, type AnalogyDisplayMode } from './config/config';
+import { defaultAnalogyDisplayMode, defaultAnalogies, type AnalogyDisplayMode, type AnalogyConfig } from './config/config';
 import { reduceToPCA3D, reduceToNaive3D } from './utils/pca';
 import type { TokenEmbedding } from './types/types';
 
@@ -17,6 +17,12 @@ const projectionMode = ref<ProjectionMode>('pca_reduction');
 const showArrows = ref(true);
 const sphereCount = ref<SphereCount>(5);
 const analogyDisplayMode = ref<AnalogyDisplayMode>(defaultAnalogyDisplayMode);
+const activeAnalogies = ref<AnalogyConfig[]>(defaultAnalogies.map(a => ({ ...a })));
+const showAllAnalogies = ref(false);
+
+const visibleAnalogies = computed(() =>
+  showAllAnalogies.value ? activeAnalogies.value : activeAnalogies.value.slice(0, 1)
+);
 
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
@@ -67,6 +73,12 @@ const currentPoints = computed(() => {
   return pts.map(p => ({ token: p.token, x: p.x, y: p.z, z: p.y }));
 });
 
+const availableTokens = computed(() => embeddings.value.map(e => e.token));
+
+function handleAnalogyUpdate(index: number, field: 'from' | 'to' | 'apply', value: string) {
+  activeAnalogies.value[index][field] = value;
+}
+
 function cycleDimensions() {
   if (dimensions.value === 3) dimensions.value = 1;
   else if (dimensions.value === 1) dimensions.value = 2;
@@ -114,6 +126,7 @@ onUnmounted(() => {
           :original-embeddings="embeddings"
           :show-arrows="showArrows"
           :sphere-count="sphereCount"
+          :analogies="visibleAnalogies"
         />
       </div>
 
@@ -122,7 +135,9 @@ onUnmounted(() => {
         :is-mobile="isMobile"
         :analogy-results="analogyResults"
         :display-mode="analogyDisplayMode"
+        :available-tokens="availableTokens"
         @close="toggleSidebar"
+        @update:analogy="handleAnalogyUpdate"
       />
 
       <SettingsModal
@@ -132,11 +147,13 @@ onUnmounted(() => {
         :show-arrows="showArrows"
         :sphere-count="sphereCount"
         :analogy-display-mode="analogyDisplayMode"
+        :show-all-analogies="showAllAnalogies"
         @close="toggleSettings"
         @update:projection-mode="projectionMode = $event"
         @update:show-arrows="showArrows = $event"
         @update:sphere-count="sphereCount = $event"
         @update:analogy-display-mode="analogyDisplayMode = $event"
+        @update:show-all-analogies="showAllAnalogies = $event"
       />
 
       <BottomBar
