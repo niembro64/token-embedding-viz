@@ -2,6 +2,9 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import type { ReducedEmbedding3D, ReducedEmbeddingND, TokenEmbedding } from '../types/types';
 import type { ProjectionMode, SphereCount, SphereAnchor } from './SettingsModal.vue';
 import { normalize3D } from '../utils/pca';
@@ -88,7 +91,7 @@ interface AnalogyState {
   applyArrow: THREE.Group | null;
   questionMark: THREE.Sprite | null;
   spheres: THREE.Mesh[];
-  resultLines: THREE.Line[];
+  resultLines: Line2[];
 }
 
 let analogyStates: AnalogyState[] = [];
@@ -572,17 +575,19 @@ function initializePoints() {
       state.spheres.push(sphereMesh);
     }
 
-    // Create result lines from tip to each nearest token (dynamic geometry)
+    // Create result lines from tip to each nearest token (fat Line2)
     for (let i = 0; i < resultCount; i++) {
-      const lineGeom = new THREE.BufferGeometry();
-      lineGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      const lineGeom = new LineGeometry();
+      lineGeom.setPositions([0, 0, 0, 0, 0, 0]);
       const lineOpacity = analogyColorOpacity * getResultOpacity(i);
-      const lineMat = new THREE.LineBasicMaterial({
+      const lineMat = new LineMaterial({
         color: colorNum,
+        linewidth: 3,
         transparent: true,
         opacity: lineOpacity,
+        resolution: new THREE.Vector2(props.width, props.height),
       });
-      const line = new THREE.Line(lineGeom, lineMat);
+      const line = new Line2(lineGeom, lineMat);
       line.visible = props.showResultLines;
       scene.add(line);
       state.resultLines.push(line);
@@ -773,6 +778,13 @@ function handleResize() {
   camera.aspect = props.width / props.height;
   camera.updateProjectionMatrix();
   renderer.setSize(props.width, props.height);
+
+  // Update Line2 material resolution
+  for (const state of analogyStates) {
+    for (const line of state.resultLines) {
+      (line.material as LineMaterial).resolution.set(props.width, props.height);
+    }
+  }
 }
 
 function onMouseMove(event: MouseEvent) {
@@ -897,14 +909,10 @@ function animate() {
     state.resultLines.forEach((line, i) => {
       const tokenPos = nearestWithDistances[i]?.position;
       if (!tokenPos) return;
-      const positions = line.geometry.attributes.position.array as Float32Array;
-      positions[0] = tipPos.x;
-      positions[1] = tipPos.y;
-      positions[2] = tipPos.z;
-      positions[3] = tokenPos.x;
-      positions[4] = tokenPos.y;
-      positions[5] = tokenPos.z;
-      line.geometry.attributes.position.needsUpdate = true;
+      (line.geometry as LineGeometry).setPositions([
+        tipPos.x, tipPos.y, tipPos.z,
+        tokenPos.x, tokenPos.y, tokenPos.z,
+      ]);
     });
 
     // Track the nearest tokens for the legend
